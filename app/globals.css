@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+.farmlog {
+	background-image: url("/images/login.png");
+	background-size: cover;
+	width: 100%;
+	background-position: start;
+	padding-top: 50px;
+	height: 100vh;
+}
+
+.role {
+	text-transform: capitalize;
+}
+
+.delete {
+	color: #f43f5e;
+}
+
+.action:hover {
+	background-color: #f2f4f7;
+	cursor: pointer;
+}
+
+.dup {
+	height: 100px !important;
+	margin: 10px !important;
+}
+
+.status {
+	justify-content: center;
+	align-items: center;
+	text-align: center;
+	width: 80px;
+	background-color: #297c66; /* Specific inline style */
+	padding: 0.15rem 0.25rem; /* Tailwind px-3 py-1 */
+	border-radius: 9999px; /* Tailwind rounded-full */
+	font-size: 0.875rem; /* Tailwind text-sm */
+	font-weight: 500; /* Tailwind font-medium */
+	text-transform: capitalize; /* Tailwind capitalize */
+	border: 2px solid; /* Tailwind border-2 */
+}
+
+.status-inner {
+	justify-content: center;
+	align-items: center;
+	margin-left: 0px;
+	text-align: center;
+	width: 80px;
+	background-color: #297c66; /* Specific inline style */
+	padding: 0.15rem 0.25rem; /* Tailwind px-3 py-1 */
+	border-radius: 9999px; /* Tailwind rounded-full */
+	font-size: 0.875rem; /* Tailwind text-sm */
+	font-weight: 500; /* Tailwind font-medium */
+	text-transform: capitalize; /* Tailwind capitalize */
+	border: 2px solid; /* Tailwind border-2 */
+}
+
+.check {
+	color: #297c66;
+	background-color: #ecfaf6;
+	border: 1px solid #297c66;
+	border-radius: 6px;
+	width: 20px;
+	height: 20px;
+}
+
+.modal-delete {
+	background-color: #f04f4a;
+}
+
+.text {
+	color: #333 !important;
+	font-size: 14px;
+	line-height: 1.5;
+	z-index: 1200;
+}
+
+.modal {
+	max-height: 80vh;
+	width: 500px;
+	overflow-y: auto;
+}
+
+.special-btn {
+	width: 300px;
+}
+
+.special-btn-farmer {
+	width: 500px;
+}
+
+.firstRound {
+	border-top-left-radius: 8px;
+	border-bottom-left-radius: 8px;
+}
+
+.lastRound {
+	border-top-right-radius: 8px;
+	border-bottom-right-radius: 8px;
+}
+
+.special-btn-project {
+	width: 460px;
+}
+
+.table-head {
+	text-align: left;
+	flex-direction: row;
+	justify-content: flex-start;
+}
+.status.green {
+	background-color: #d1fae5; /* Tailwind bg-green-100 */
+	color: #047857;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #a7f3d0;
+	font-size: 12px; /* Tailwind text-green-700 */
+}
+
+.status.red {
+	background-color: #fee2e2; /* Tailwind bg-red-100 */
+	color: #ee3731;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #ffb7b7;
+	font-size: 12px;
+}
+
+.status-inner.green {
+	background-color: #d1fae5; /* Tailwind bg-green-100 */
+	color: #047857;
+	text-transform: capitalize;
+	padding: 5px 10px;
+	border-radius: 8px;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	width: fit-content;
+	border: 1px solid #a7f3d0;
+	font-size: 12px; /* Tailwind text-green-700 */
+}
+
+.status-inner.red {
+	background-color: #fee2e2; /* Tailwind bg-red-100 */
+	color: #ee3731;
+	text-transform: capitalize;
+	padding: 5px 10px;
+	border-radius: 8px;
+	font-family: "Inter", sans-serif;
+	width: fit-content;
+	font-weight: 500;
+	border: 1px solid #ffb7b7;
+	font-size: 12px;
+}
+
+.status.blue {
+	background-color: #f9f5ff; /* Tailwind bg-red-100 */
+	color: #6941c6;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #c5b3f0;
+	font-size: 12px;
+}
+
+.status.yellow {
+	background-color: #fff8eb; /* Tailwind bg-red-100 */
+	color: #d98c00;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #ffda97;
+	font-size: 12px;
+}
+
+.add-farmer {
+	height: 80vh;
+}
+
+.import-farmer {
+	width: 400px;
+}
+
+/* Radial progress bar styles */
+svg circle {
+	transform: rotate(-90deg);
+	transform-origin: 50% 50%;
+}
+
+/* Animation for progress */
+@keyframes progress {
+	0% {
+		stroke-dasharray: 0 216;
+	}
+}
+
+.post {
+	z-index: 150;
+}
+.t-data {
+	text-transform: capitalize;
+}
+
+.status-inner.blue {
+	background-color: #f9f5ff; /* Tailwind bg-red-100 */
+	color: #6941c6;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #c5b3f0;
+	font-size: 12px;
+}
+
+.status-inner.yellow {
+	background-color: #fff8eb; /* Tailwind bg-red-100 */
+	color: #d98c00;
+	font-family: "Inter", sans-serif;
+	font-weight: 500;
+	border: 1px solid #ffda97;
+	font-size: 12px;
+}
+
+.bg-primary-1 {
+	background-color: #047857;
+}
+
+@layer utilities {
+	.flex-center {
+		@apply flex justify-center items-center;
+	}
+
+	.flex-between {
+		@apply flex justify-between items-center;
+	}
+}
+
+@layer base {
+}
