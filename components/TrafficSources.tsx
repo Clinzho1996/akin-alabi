@@ -21,9 +21,7 @@ type ApiResponse = {
 };
 
 function TrafficSources() {
-	const [selectedRange, setSelectedRange] = useState<
-		"today" | "week" | "month" | "all"
-	>("all");
+	const [selectedRange] = useState<"today" | "week" | "month" | "all">("all");
 	const [trafficData, setTrafficData] = useState<
 		{ platform: string; value: number; color: string }[]
 	>([]);

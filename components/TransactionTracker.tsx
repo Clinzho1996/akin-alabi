@@ -46,11 +46,6 @@ function TransactionTracker() {
 	const [selectedYear, setSelectedYear] = useState<string>(
 		new Date().getFullYear().toString()
 	);
-	const [totalStats, setTotalStats] = useState({
-		total_users: 0,
-		total_providers: 0,
-		period: "12 months",
-	});
 
 	const fetchTransactionData = async () => {
 		try {
@@ -84,11 +79,6 @@ function TransactionTracker() {
 
 				console.log("User Growth Data:", filteredData);
 				setChartData(filteredData);
-				setTotalStats({
-					total_users,
-					total_providers,
-					period,
-				});
 			}
 		} catch (error) {
 			console.error("Error fetching user growth data:", error);

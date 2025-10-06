@@ -1,7 +1,7 @@
 "use client";
 import { overviewLinks, settingsLinks, sidebarLinks } from "@/constants";
 import { cn } from "@/lib/utils";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,7 +11,6 @@ import { toast } from "react-toastify";
 const Sidebar = () => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const pathname = usePathname();
-	const { data: session } = useSession();
 
 	const handleLogout = async () => {
 		try {

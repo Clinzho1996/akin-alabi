@@ -61,19 +61,9 @@ function Dashboard() {
 		null
 	);
 	const [isLoading, setIsLoading] = useState(true);
-	const [document, setDocument] = useState<DocumentData | null>(null);
 	const [additionalStats, setAdditionalStats] =
 		useState<AdditionalStats | null>(null);
 	const [dataLoaded, setDataLoaded] = useState(false);
-
-	const formatBalance = (amount: number) => {
-		return new Intl.NumberFormat("en-NG", {
-			style: "currency",
-			currency: "NGN",
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		}).format(amount ?? 0);
-	};
 
 	const fetchDashboardData = async () => {
 		try {
@@ -131,12 +121,6 @@ function Dashboard() {
 				setDashboardData(userResponse.data.data);
 			} else {
 				toast.error("Failed to fetch user dashboard data.");
-			}
-
-			if (documentResponse.data.status === true) {
-				setDocument(documentResponse.data.data);
-			} else {
-				toast.error("Failed to fetch document data.");
 			}
 
 			// Set additional stats
