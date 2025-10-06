@@ -6,10 +6,11 @@ import { signIn, useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-export default function SignIn() {
+// Create a separate component that uses useSearchParams
+function SignInContent() {
 	const { status } = useSession();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -162,5 +163,34 @@ export default function SignIn() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+// Main component with Suspense boundary
+export default function SignIn() {
+	return (
+		<Suspense
+			fallback={
+				<div className="w-full flex flex-col lg:flex-row justify-between items-center h-screen bg-[#fff]">
+					<div className="w-full lg:w-[40%] flex flex-col gap-10 py-[3%] px-[2%] mx-auto my-auto bg-[#fff] shadow-lg shadow-[#0000000D] rounded-lg border-2">
+						<div className="p-1 rounded-lg flex flex-col items-center">
+							<div className="w-full px-6 pt-10 rounded-lg flex flex-col items-center">
+								<Image
+									src="/images/akin.png"
+									alt="Logo"
+									width={180}
+									height={80}
+									className="mx-auto mb-4"
+								/>
+								<p className="text-sm text-[#6D717F] text-center mt-2 font-inter">
+									Loading...
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			}>
+			<SignInContent />
+		</Suspense>
 	);
 }
