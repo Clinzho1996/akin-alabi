@@ -43,11 +43,6 @@ interface DashboardData {
 	};
 }
 
-interface DocumentData {
-	total: number;
-	percentage_change: number;
-}
-
 interface AdditionalStats {
 	totalActiveAppointments: number;
 	totalSpecialistProvider: number;
@@ -80,42 +75,41 @@ function Dashboard() {
 			}
 
 			// Fetch all data in parallel
-			const [userResponse, documentResponse, additionalResponse] =
-				await Promise.all([
-					axios.get(
-						"https://api.medbankr.ai/api/v1/administrator/dashboard/user",
-						{
-							headers: {
-								Accept: "application/json",
-								Authorization: `Bearer ${accessToken}`,
-							},
-						}
-					),
-					axios.get(
-						"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
-						{
-							headers: {
-								Accept: "application/json",
-								Authorization: `Bearer ${accessToken}`,
-							},
-						}
-					),
-					// Simulate additional stats fetch - replace with actual API calls
-					new Promise((resolve) =>
-						setTimeout(
-							() =>
-								resolve({
-									data: {
-										totalActiveAppointments: 345,
-										totalSpecialistProvider: 45678,
-										totalTransactions: 2524000,
-										totalAppointments: 45678,
-									},
-								}),
-							500
-						)
-					),
-				]);
+			const [userResponse, additionalResponse] = await Promise.all([
+				axios.get(
+					"https://api.medbankr.ai/api/v1/administrator/dashboard/user",
+					{
+						headers: {
+							Accept: "application/json",
+							Authorization: `Bearer ${accessToken}`,
+						},
+					}
+				),
+				axios.get(
+					"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
+					{
+						headers: {
+							Accept: "application/json",
+							Authorization: `Bearer ${accessToken}`,
+						},
+					}
+				),
+				// Simulate additional stats fetch - replace with actual API calls
+				new Promise((resolve) =>
+					setTimeout(
+						() =>
+							resolve({
+								data: {
+									totalActiveAppointments: 345,
+									totalSpecialistProvider: 45678,
+									totalTransactions: 2524000,
+									totalAppointments: 45678,
+								},
+							}),
+						500
+					)
+				),
+			]);
 
 			if (userResponse.data.status === true) {
 				setDashboardData(userResponse.data.data);

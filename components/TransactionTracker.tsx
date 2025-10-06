@@ -69,8 +69,7 @@ function TransactionTracker() {
 			);
 
 			if (response.data.status === true) {
-				const { graph_data, total_users, total_providers, period } =
-					response.data.data;
+				const { graph_data } = response.data.data;
 
 				// Filter data by selected year if needed, or use all data
 				const filteredData = selectedYear
