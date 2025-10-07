@@ -70,9 +70,11 @@ function Settings() {
 												height={50}
 											/>
 										) : (
-											<div className="flex items-center justify-center w-full h-full">
-												<h2 className="text-white font-bold text-lg">
-													{getNameInitials({ name: session?.user?.name || "" })}
+											<div className="flex items-center justify-center w-[50px] h-[50px]">
+												<h2 className="text-secondary-1 font-bold text-lg">
+													{getNameInitials({
+														name: session?.user?.name || "AA",
+													})}
 												</h2>
 											</div>
 										)}
@@ -82,7 +84,7 @@ function Settings() {
 											Full Name
 										</p>
 										<h3 className="text-dark-1 text-sm font-normal font-inter border-[1px]  border-[#9F9E9E40] p-2 rounded-lg w-full">
-											{session.user.name}
+											{session.user.name || "Akin Alabi Admin"}
 										</h3>
 									</div>
 								</div>

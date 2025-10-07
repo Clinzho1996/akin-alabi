@@ -23,6 +23,9 @@ body {
 	color: #f43f5e;
 }
 
+.select {
+	z-index: 1000 !important;
+}
 .action:hover {
 	background-color: #f2f4f7;
 	cursor: pointer;
@@ -33,6 +36,9 @@ body {
 	margin: 10px !important;
 }
 
+.form-big {
+	width: 650px;
+}
 .status {
 	justify-content: center;
 	align-items: center;
@@ -93,7 +99,7 @@ body {
 }
 
 .special-btn-farmer {
-	width: 500px;
+	width: 550px;
 }
 
 .firstRound {

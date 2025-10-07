@@ -17,13 +17,13 @@ export const sidebarLinks = [
 	},
 	{
 		label: "User & Role Management",
-		route: "/benefit-management",
-		imgUrl: "/icons/user.svg",
+		route: "/role-management",
+		imgUrl: "/icons/log.svg",
 	},
 	{
 		label: "Log Activity",
-		route: "/benefit-management",
-		imgUrl: "/icons/log.svg",
+		route: "/log-activity",
+		imgUrl: "/icons/settings.svg",
 	},
 ];
 
@@ -39,6 +39,6 @@ export const settingsLinks = [
 	{
 		label: "Settings",
 		route: "/settings",
-		imgUrl: "/icons/settings.svg",
+		imgUrl: "/icons/SVG.svg",
 	},
 ];

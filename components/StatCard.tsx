@@ -19,9 +19,7 @@ const StatCard: React.FC<StatCardProps> = ({
 	return (
 		<div className="rounded-xl border border-gray-200 p-4 flex justify-between items-start  bg-white shadow-sm w-full">
 			<div>
-				<p className="text-xs text-gray-500 font-medium">
-					{title.toUpperCase()}
-				</p>
+				<p className="text-sm text-gray-500 font-medium">{title}</p>
 				<p className="text-3xl font-medium text-black mt-3">
 					{value} {unit}
 				</p>
