@@ -19,7 +19,6 @@ import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { RoleDataTable } from "./role-table";
@@ -373,9 +372,9 @@ const RoleTable = () => {
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/role-management/${user.id}`}>
+						{/* <Link href={`/role-management/${user.id}`}>
 							<Button className="border border-[#E8E8E8]">View</Button>
-						</Link>
+						</Link> */}
 
 						<Button
 							className="border border-[#E8E8E8]"
