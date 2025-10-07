@@ -260,14 +260,14 @@ export function EventDataTable<TData, TValue>({
 				<Modal
 					isOpen={isModalOpen}
 					onClose={closeModal}
-					title="Create User (Staff)">
+					title="Create New Event">
 					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
 								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">First Name</p>
+										<p className="text-xs text-primary-6">Event Name</p>
 										<Input
 											type="text"
 											placeholder="Enter First Name"
@@ -275,47 +275,64 @@ export function EventDataTable<TData, TValue>({
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Last Name</p>
+										<p className="text-xs text-primary-6">Location</p>
 										<Input
 											type="text"
+											placeholder="Enter Location"
+											className="focus:border-none"
+										/>
+									</div>
+								</div>
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Start Date</p>
+										<Input
+											type="date"
+											placeholder="Enter First Name"
+											className="focus:border-none"
+										/>
+									</div>
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">End Date</p>
+										<Input
+											type="date"
 											placeholder="Enter Last Name"
 											className="focus:border-none"
 										/>
 									</div>
 								</div>
 
-								{/* Email, Role & Phone Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Email Address</p>
+										<p className="text-xs text-primary-6">Start Time</p>
 										<Input
-											type="text"
-											placeholder="Enter email address"
+											type="time"
+											placeholder="Enter First Name"
 											className="focus:border-none"
 										/>
 									</div>
-
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Role</p>
-										<Select>
-											<SelectTrigger className="w-full focus:border-none ">
-												<SelectValue placeholder="Select role" />
-											</SelectTrigger>
-											<SelectContent className="bg-white z-10 select">
-												<SelectItem value="admin">Admin</SelectItem>
-												<SelectItem value="staff">Staff</SelectItem>
-												<SelectItem value="field-officer">
-													Field Officer
-												</SelectItem>
-											</SelectContent>
-										</Select>
+										<p className="text-xs text-primary-6">End Time</p>
+										<Input
+											type="time"
+											placeholder="Enter Last Name"
+											className="focus:border-none"
+										/>
 									</div>
-
+								</div>
+							</div>
+						</div>
+						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
+							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
+								{/* First Name & Last Name Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Phone</p>
+										<p className="text-xs text-primary-6">
+											Benefits (optional)
+										</p>
 										<Input
 											type="text"
-											placeholder="Enter phone number"
+											placeholder="Type benefit name and press Enter to add them"
 											className="focus:border-none"
 										/>
 									</div>
@@ -331,7 +348,7 @@ export function EventDataTable<TData, TValue>({
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
 								disabled={isLoading}>
-								{isLoading ? "Creating User..." : "Create User"}
+								{isLoading ? "Creating Event..." : "Create Event"}
 							</Button>
 						</div>
 					</div>
@@ -369,7 +386,7 @@ export function EventDataTable<TData, TValue>({
 					<Button
 						className="bg-secondary-1 border-[1px] border-[#173C3D] text-white font-inter cborder"
 						onClick={openModal}>
-						<IconFileExport /> Add New Staff
+						<IconFileExport /> Add New Event
 					</Button>
 				</div>
 			</div>

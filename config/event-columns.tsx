@@ -8,13 +8,6 @@ import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
@@ -302,7 +295,20 @@ const EventTable = () => {
 		},
 		{
 			accessorKey: "full_name",
-			header: "Full Name",
+			header: "Event Name",
+			cell: ({ row }) => {
+				const name = row.getValue<string | null>("full_name") || "N/A";
+
+				return (
+					<div className="flex flex-row justify-start items-center gap-2">
+						<span className="text-xs text-primary-6 capitalize">{name}</span>
+					</div>
+				);
+			},
+		},
+		{
+			accessorKey: "full_name",
+			header: "Beneficiaries",
 			cell: ({ row }) => {
 				const name = row.getValue<string | null>("full_name") || "N/A";
 				const pic = row.original.pic;
@@ -322,20 +328,20 @@ const EventTable = () => {
 		},
 		{
 			accessorKey: "email",
-			header: "Email",
+			header: "Amount / Package",
 			cell: ({ row }) => {
-				const email = row.getValue<string>("email");
+				const email = row.getValue<string>("type") || "NGN 50,000";
 				return <span className="text-xs text-primary-6">{email}</span>;
 			},
 		},
 
 		{
-			accessorKey: "role",
-			header: "Role",
+			accessorKey: "created_at",
+			header: "Date",
 			cell: ({ row }) => {
-				const role = row.getValue<string>("role");
+				const date = row.getValue<string>("created_at");
 				return (
-					<span className="text-xs text-primary-6 capitalize">{role}</span>
+					<span className="text-xs text-primary-6">{formatDate(date)}</span>
 				);
 			},
 		},
@@ -373,7 +379,7 @@ const EventTable = () => {
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/role-management/${user.id}`}>
+						<Link href={`/event-management/${user.id}`}>
 							<Button className="border border-[#E8E8E8]">View</Button>
 						</Link>
 
@@ -420,14 +426,14 @@ const EventTable = () => {
 				<Modal
 					isOpen={isEditModalOpen}
 					onClose={closeEditModal}
-					title="Edit User (Staff)">
+					title="Edit Event">
 					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
 								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">First Name</p>
+										<p className="text-xs text-primary-6">Event Name</p>
 										<Input
 											type="text"
 											placeholder="Enter First Name"
@@ -439,59 +445,64 @@ const EventTable = () => {
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Last Name</p>
+										<p className="text-xs text-primary-6">Location</p>
 										<Input
 											type="text"
+											placeholder="Enter Location"
+											className="focus:border-none"
+										/>
+									</div>
+								</div>
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Start Date</p>
+										<Input
+											type="date"
+											placeholder="Enter First Name"
+											className="focus:border-none"
+										/>
+									</div>
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">End Date</p>
+										<Input
+											type="date"
 											placeholder="Enter Last Name"
 											className="focus:border-none"
-											value={editData.full_name}
-											onChange={(e) =>
-												setEditData({ ...editData, full_name: e.target.value })
-											}
 										/>
 									</div>
 								</div>
 
-								{/* Email, Role & Phone Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Email Address</p>
+										<p className="text-xs text-primary-6">Start Time</p>
 										<Input
-											type="text"
-											placeholder="Enter email address"
+											type="time"
+											placeholder="Enter First Name"
 											className="focus:border-none"
-											value={editData.email}
-											onChange={(e) =>
-												setEditData({ ...editData, email: e.target.value })
-											}
 										/>
 									</div>
-
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Role</p>
-										<Select
-											value={editData.gender}
-											onValueChange={(value) =>
-												setEditData({ ...editData, gender: value })
-											}>
-											<SelectTrigger className="w-full focus:border-none ">
-												<SelectValue placeholder="Select role" />
-											</SelectTrigger>
-											<SelectContent className="bg-white z-10 select">
-												<SelectItem value="admin">Admin</SelectItem>
-												<SelectItem value="staff">Staff</SelectItem>
-												<SelectItem value="field-officer">
-													Field Officer
-												</SelectItem>
-											</SelectContent>
-										</Select>
+										<p className="text-xs text-primary-6">End Time</p>
+										<Input
+											type="time"
+											placeholder="Enter Last Name"
+											className="focus:border-none"
+										/>
 									</div>
-
+								</div>
+							</div>
+						</div>
+						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
+							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
+								{/* First Name & Last Name Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Phone</p>
+										<p className="text-xs text-primary-6">
+											Benefits (optional)
+										</p>
 										<Input
 											type="text"
-											placeholder="Enter phone number"
+											placeholder="Type benefit name and press Enter to add them"
 											className="focus:border-none"
 										/>
 									</div>
@@ -508,7 +519,7 @@ const EventTable = () => {
 								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
 								onClick={handleEditUser}
 								disabled={isLoading}>
-								{isLoading ? "Updating User..." : "Update User"}
+								{isLoading ? "Updating Event..." : "Update Event"}
 							</Button>
 						</div>
 					</div>
