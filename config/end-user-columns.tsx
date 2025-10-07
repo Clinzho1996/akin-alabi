@@ -375,11 +375,9 @@ const EndUserTable = () => {
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 
-						<Button
-							className="border border-[#E8E8E8]"
-							onClick={() => openEditModal(row)}>
-							Edit
-						</Button>
+						<Link href={`/beneficiary-management/${user.id}/edit`}>
+							<Button className="border border-[#E8E8E8]">Edit</Button>
+						</Link>
 
 						<Button
 							className="border border-[#E8E8E8]"
