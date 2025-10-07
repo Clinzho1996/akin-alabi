@@ -16,7 +16,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-import Modal from "@/components/Modal";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,7 +33,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport } from "@tabler/icons-react";
 import axios from "axios";
 import {
 	ChevronLeft,
@@ -72,7 +70,7 @@ interface ApiResponse {
 	filters: Record<string, any>;
 }
 
-export function EventDataTable<TData, TValue>({
+export function AttendanceDataTable<TData, TValue>({
 	columns,
 	data,
 }: DataTableProps<TData, TValue>) {
@@ -256,107 +254,9 @@ export function EventDataTable<TData, TValue>({
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
-			{isModalOpen && (
-				<Modal
-					isOpen={isModalOpen}
-					onClose={closeModal}
-					title="Create New Event">
-					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
-						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
-							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Event Name</p>
-										<Input
-											type="text"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Location</p>
-										<Input
-											type="text"
-											placeholder="Enter Location"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Date</p>
-										<Input
-											type="date"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Date</p>
-										<Input
-											type="date"
-											placeholder="Enter Last Name"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Time</p>
-										<Input
-											type="time"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Time</p>
-										<Input
-											type="time"
-											placeholder="Enter Last Name"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
-							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">
-											Benefits (optional)
-										</p>
-										<Input
-											type="text"
-											placeholder="Type benefit name and press Enter to add them"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-							<Button
-								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs px-4 py-2"
-								onClick={closeModal}>
-								Cancel
-							</Button>
-							<Button
-								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
-								disabled={isLoading}>
-								{isLoading ? "Creating Event..." : "Create Event"}
-							</Button>
-						</div>
-					</div>
-				</Modal>
-			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Pending", "Closed"].map(
+					{["View All", "Present", "Absent", "Late"].map(
 						(status, index, arr) => (
 							<p
 								key={status}
@@ -375,7 +275,7 @@ export function EventDataTable<TData, TValue>({
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input
-						placeholder="Search Events..."
+						placeholder="Search User..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"
@@ -383,11 +283,6 @@ export function EventDataTable<TData, TValue>({
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
-					<Button
-						className="bg-secondary-1 border-[1px] border-[#173C3D] text-white font-inter cborder"
-						onClick={openModal}>
-						<IconFileExport /> Add New Event
-					</Button>
 				</div>
 			</div>
 

@@ -34,45 +34,21 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport } from "@tabler/icons-react";
-import axios from "axios";
 import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
 } from "lucide-react";
-import { getSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
-import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 }
 
-interface ApiResponse {
-	status: boolean;
-	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, any>;
-}
-
-export function EventDataTable<TData, TValue>({
+export function BenefitDataTable<TData, TValue>({
 	columns,
 	data,
 }: DataTableProps<TData, TValue>) {
@@ -88,7 +64,6 @@ export function EventDataTable<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
-	const [stats, setStats] = useState<ApiResponse | null>(null);
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
@@ -138,101 +113,6 @@ export function EventDataTable<TData, TValue>({
 		}
 	};
 
-	const handleExport = () => {
-		// Convert the table data to a worksheet
-		const worksheet = XLSX.utils.json_to_sheet(tableData);
-
-		// Create a new workbook and add the worksheet
-		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
-
-		// Generate a binary string from the workbook
-		const binaryString = XLSX.write(workbook, {
-			bookType: "xlsx",
-			type: "binary",
-		});
-
-		// Convert the binary string to a Blob
-		const blob = new Blob([s2ab(binaryString)], {
-			type: "application/octet-stream",
-		});
-
-		// Create a link element and trigger the download
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = "staffs.xlsx";
-		link.click();
-
-		// Clean up
-		URL.revokeObjectURL(url);
-	};
-
-	// Utility function to convert string to ArrayBuffer
-	const s2ab = (s: string) => {
-		const buf = new ArrayBuffer(s.length);
-		const view = new Uint8Array(buf);
-		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-		return buf;
-	};
-
-	const bulkDeleteStaff = async () => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				toast.error("No access token found. Please log in again.");
-				return;
-			}
-
-			const selectedIds = Object.keys(rowSelection).map(
-				(index) => (tableData[parseInt(index)] as any)?.id
-			);
-
-			if (selectedIds.length === 0) {
-				toast.warn("No staff selected for deletion.");
-				return;
-			}
-
-			console.log("Selected IDs for deletion:", selectedIds);
-
-			const response = await axios.delete(
-				"https://api.medbankr.ai/api/v1/administrator/user",
-				{
-					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				toast.success("Selected staff deleted successfully!");
-
-				// Update the table data by filtering out the deleted staff
-				setTableData((prevData) =>
-					prevData.filter((staff) => !selectedIds.includes((staff as any).id))
-				);
-
-				// Clear the selection
-				setRowSelection({});
-			}
-		} catch (error) {
-			console.error("Error bulk deleting staff:", error);
-			if (axios.isAxiosError(error)) {
-				toast.error(
-					error.response?.data?.message ||
-						"Failed to delete staff. Please try again."
-				);
-			} else {
-				toast.error("An unexpected error occurred. Please try again.");
-			}
-		}
-	};
-
 	const table = useReactTable({
 		data: tableData,
 		columns,
@@ -260,122 +140,52 @@ export function EventDataTable<TData, TValue>({
 				<Modal
 					isOpen={isModalOpen}
 					onClose={closeModal}
-					title="Create New Event">
-					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
+					title="Create New Benefit">
+					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form modal-small w-[500px]">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
-							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Event Name</p>
-										<Input
-											type="text"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Location</p>
-										<Input
-											type="text"
-											placeholder="Enter Location"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Date</p>
-										<Input
-											type="date"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Date</p>
-										<Input
-											type="date"
-											placeholder="Enter Last Name"
-											className="focus:border-none"
-										/>
-									</div>
+							<div className="flex flex-col sm:flex-row gap-2 w-full bg-white shadow-lg p-3 rounded-lg">
+								<div className="w-full">
+									<p className="text-xs text-primary-6">Benefit Name</p>
+									<Input
+										type="text"
+										placeholder="Enter Full Name"
+										className="focus:border-none mt-2"
+									/>
 								</div>
 
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Time</p>
-										<Input
-											type="time"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Time</p>
-										<Input
-											type="time"
-											placeholder="Enter Last Name"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
-							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">
-											Benefits (optional)
-										</p>
-										<Input
-											type="text"
-											placeholder="Type benefit name and press Enter to add them"
-											className="focus:border-none"
-										/>
-									</div>
+								<div className="w-full">
+									<p className="text-xs text-primary-6 mt-2">Benefit Type</p>
+									<Select>
+										<SelectTrigger className="w-full option select">
+											<SelectValue placeholder="Select benefit" />
+										</SelectTrigger>
+										<SelectContent className="bg-white z-10 select text-gray-300">
+											<SelectItem value="male">Monetary</SelectItem>
+											<SelectItem value="female">Material</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 							</div>
 						</div>
 						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
 							<Button
-								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs px-4 py-2"
+								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
 								onClick={closeModal}>
 								Cancel
 							</Button>
 							<Button
-								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
+								className="bg-secondary-1 text-white font-inter text-xs"
 								disabled={isLoading}>
-								{isLoading ? "Creating Event..." : "Create Event"}
+								{isLoading ? "Creating Benefit..." : "Create Benefit"}
 							</Button>
 						</div>
 					</div>
 				</Modal>
 			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
-				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Pending", "Closed"].map(
-						(status, index, arr) => (
-							<p
-								key={status}
-								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
-									selectedStatus === status
-										? "bg-primary-5 text-dark-1"
-										: "text-dark-1"
-								} 
-			${index === 0 ? "rounded-l-lg firstRound" : ""} 
-			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
-								onClick={() => handleStatusFilter(status)}>
-								{status}
-							</p>
-						)
-					)}
-				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input
-						placeholder="Search Events..."
+						placeholder="Search Benefit..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"
@@ -383,11 +193,6 @@ export function EventDataTable<TData, TValue>({
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
-					<Button
-						className="bg-secondary-1 border-[1px] border-[#173C3D] text-white font-inter cborder"
-						onClick={openModal}>
-						<IconFileExport /> Add New Event
-					</Button>
 				</div>
 			</div>
 
