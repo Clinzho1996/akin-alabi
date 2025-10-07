@@ -160,10 +160,14 @@ function RoleManagement() {
 	return (
 		<div className="w-full overflow-x-hidden">
 			<HeaderBox />
-			<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
-				The process of planning, organizing, and directing employee activities
-				within an organization.
-			</p>
+			<div className="mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
+				<h2 className="text-black font-medium">Role Management</h2>
+				<p className="text-sm text-[#6C7278] font-normal ">
+					The process of planning, organizing, and directing employee activities
+					within an organization.
+				</p>
+			</div>
+
 			<div className="flex flex-col sm:flex-row justify-between items-start gap-4 w-full px-4 py-2  max-w-[100vw]">
 				<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
 					<div className="flex flex-row justify-start gap-2 items-center">
