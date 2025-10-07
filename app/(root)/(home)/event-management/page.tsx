@@ -3,7 +3,7 @@
 import HeaderBox from "@/components/HeaderBox";
 import Loader from "@/components/Loader";
 import StatCard from "@/components/StatCard";
-import BenefitTable from "@/config/benefit-columns";
+import EventTable from "@/config/event-columns";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
@@ -43,7 +43,7 @@ interface ApiResponse {
 	};
 	filters: Record<string, unknown>;
 }
-function BenefitManagement() {
+function EventManagement() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [stats, setStats] = useState<ApiResponse | null>(null);
 	const fetchUsers = async (page = 1, limit = 5000) => {
@@ -161,37 +161,39 @@ function BenefitManagement() {
 		<div className="w-full overflow-x-hidden">
 			<HeaderBox />
 			<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
-				Search, review, and manage benefits, statuses, and plan enrollments.
+				Manage, track events and beneficiaries attendance.
 			</p>
 			<div className="flex flex-col sm:flex-row justify-between items-start gap-4 w-full px-4 py-2  max-w-[100vw]">
 				<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
 					<div className="flex flex-row justify-start gap-2 items-center">
 						<Image src="/images/info.png" alt="info" width={20} height={20} />
-						<p className="text-sm font-medium text-black">Benefit Overview</p>
+						<p className="text-sm font-medium text-black">
+							Attendance Overview
+						</p>
 					</div>
 
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
-							title="Total Benefit"
+							title="Total Check-ins"
 							value={stats?.overview.total ?? 0}
 							percentage="36%"
 							positive
 						/>
 
 						<StatCard
-							title="Total Active Benefit"
+							title="Total Present"
 							value={stats?.overview.active ?? 0}
 							percentage="24%"
 							positive={false}
 						/>
 						<StatCard
-							title="Total Inactive Benefit"
+							title="Total Absent "
 							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
 						/>
 						<StatCard
-							title="Total Amount Disbursed"
+							title="Total Late "
 							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
@@ -200,10 +202,10 @@ function BenefitManagement() {
 				</div>
 			</div>
 			<div className="bg-white flex flex-col px-4 py-2 gap-2 w-full max-w-[100vw]">
-				<BenefitTable />
+				<EventTable />
 			</div>
 		</div>
 	);
 }
 
-export default BenefitManagement;
+export default EventManagement;

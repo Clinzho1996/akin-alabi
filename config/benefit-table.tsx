@@ -223,7 +223,7 @@ export function BenefitDataTable<TData, TValue>({
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input
-						placeholder="Search User..."
+						placeholder="Search Benefit..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"

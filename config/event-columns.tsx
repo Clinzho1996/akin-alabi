@@ -22,7 +22,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { RoleDataTable } from "./role-table";
+import { EventDataTable } from "./event-table";
 
 // This type is used to define the shape of our data.
 export type EndUser = {
@@ -74,7 +74,7 @@ interface EditData {
 	date_of_birth: string;
 }
 
-const RoleTable = () => {
+const EventTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -400,7 +400,7 @@ const RoleTable = () => {
 				<Loader />
 			) : (
 				<>
-					<RoleDataTable columns={columns} data={tableData} />
+					<EventDataTable columns={columns} data={tableData} />
 					{pagination.page < pagination.pages && (
 						<div className="mt-4 flex justify-center">
 							<Button
@@ -545,4 +545,4 @@ const RoleTable = () => {
 	);
 };
 
-export default RoleTable;
+export default EventTable;

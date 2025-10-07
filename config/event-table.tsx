@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+import Modal from "@/components/Modal";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +34,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconTrash } from "@tabler/icons-react";
+import { IconFileExport } from "@tabler/icons-react";
 import axios from "axios";
 import {
 	ChevronLeft,
@@ -45,13 +46,33 @@ import { getSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
+import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 }
 
-export function PostingDataTable<TData, TValue>({
+interface ApiResponse {
+	status: boolean;
+	message: string;
+	data: EndUser[];
+	overview: {
+		total: number;
+		disable: number;
+		active: number;
+	};
+	pagination: {
+		total: number;
+		page: number;
+		limit: number;
+		pages: number;
+	};
+	filters: Record<string, any>;
+}
+
+export function EventDataTable<TData, TValue>({
 	columns,
 	data,
 }: DataTableProps<TData, TValue>) {
@@ -62,42 +83,103 @@ export function PostingDataTable<TData, TValue>({
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [tableData, setTableData] = useState(data);
+	const [tableData, setTableData] = useState<TData[]>(data);
+	const [isLoading, setIsLoading] = useState(false);
+	const [stats, setStats] = useState<ApiResponse | null>(null);
+
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-	const openModal = () => setModalOpen(true);
-	const closeModal = () => setModalOpen(false);
+	// Sync `tableData` with `data` prop
+	useEffect(() => {
+		setTableData(data);
+	}, [data]);
 
+	const openModal = () => {
+		setModalOpen(true);
+	};
+
+	const closeModal = () => {
+		setModalOpen(false);
+	};
 	// Function to filter data based on date range
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
-			setTableData(data); // Reset to all data if no date range is selected
+			setTableData(data); // Reset to all data
 			return;
 		}
 
 		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.created_at);
+			const dateJoined = new Date(farmer.date);
 			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
 	};
 
-	// Update the table data whenever the date range changes
-	React.useEffect(() => {
+	useEffect(() => {
 		filterDataByDateRange();
 	}, [dateRange]);
 
-	useEffect(() => {
-		setTableData(data); // Sync `tableData` with `data` prop
-	}, [data]);
+	const handleStatusFilter = (status: string) => {
+		setSelectedStatus(status);
 
-	const bulkDeletePosting = async () => {
+		if (status === "View All") {
+			setTableData(data); // Reset to all data
+		} else {
+			const filteredData = data?.filter(
+				(farmer) =>
+					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+			);
+
+			setTableData(filteredData as TData[]);
+		}
+	};
+
+	const handleExport = () => {
+		// Convert the table data to a worksheet
+		const worksheet = XLSX.utils.json_to_sheet(tableData);
+
+		// Create a new workbook and add the worksheet
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+
+		// Generate a binary string from the workbook
+		const binaryString = XLSX.write(workbook, {
+			bookType: "xlsx",
+			type: "binary",
+		});
+
+		// Convert the binary string to a Blob
+		const blob = new Blob([s2ab(binaryString)], {
+			type: "application/octet-stream",
+		});
+
+		// Create a link element and trigger the download
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = "staffs.xlsx";
+		link.click();
+
+		// Clean up
+		URL.revokeObjectURL(url);
+	};
+
+	// Utility function to convert string to ArrayBuffer
+	const s2ab = (s: string) => {
+		const buf = new ArrayBuffer(s.length);
+		const view = new Uint8Array(buf);
+		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
+		return buf;
+	};
+
+	const bulkDeleteStaff = async () => {
 		try {
 			const session = await getSession();
-			const accessToken = session?.backendData?.token;
+			const accessToken = session?.accessToken;
 
 			if (!accessToken) {
 				console.error("No access token found.");
@@ -110,16 +192,16 @@ export function PostingDataTable<TData, TValue>({
 			);
 
 			if (selectedIds.length === 0) {
-				toast.warn("No posting device selected for deletion.");
+				toast.warn("No staff selected for deletion.");
 				return;
 			}
 
 			console.log("Selected IDs for deletion:", selectedIds);
 
 			const response = await axios.delete(
-				"https://api.wowdev.com.ng/api/v1/posting/bulk/delete",
+				"https://api.medbankr.ai/api/v1/administrator/user",
 				{
-					data: { user_ids: selectedIds }, // Ensure this matches the API's expected payload
+					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
@@ -128,7 +210,7 @@ export function PostingDataTable<TData, TValue>({
 			);
 
 			if (response.status === 200) {
-				toast.success("Selected devices deleted successfully!");
+				toast.success("Selected staff deleted successfully!");
 
 				// Update the table data by filtering out the deleted staff
 				setTableData((prevData) =>
@@ -150,7 +232,6 @@ export function PostingDataTable<TData, TValue>({
 			}
 		}
 	};
-	
 
 	const table = useReactTable({
 		data: tableData,
@@ -174,24 +255,122 @@ export function PostingDataTable<TData, TValue>({
 	});
 
 	return (
-		<div className="rounded-lg border-[1px] py-0 border-[#E2E4E9] mt-4">
-			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full mt-3">
+		<div className="rounded-lg border-[1px] py-0">
+			{isModalOpen && (
+				<Modal
+					isOpen={isModalOpen}
+					onClose={closeModal}
+					title="Create User (Staff)">
+					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
+						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
+							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
+								{/* First Name & Last Name Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">First Name</p>
+										<Input
+											type="text"
+											placeholder="Enter First Name"
+											className="focus:border-none"
+										/>
+									</div>
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Last Name</p>
+										<Input
+											type="text"
+											placeholder="Enter Last Name"
+											className="focus:border-none"
+										/>
+									</div>
+								</div>
+
+								{/* Email, Role & Phone Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Email Address</p>
+										<Input
+											type="text"
+											placeholder="Enter email address"
+											className="focus:border-none"
+										/>
+									</div>
+
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Role</p>
+										<Select>
+											<SelectTrigger className="w-full focus:border-none ">
+												<SelectValue placeholder="Select role" />
+											</SelectTrigger>
+											<SelectContent className="bg-white z-10 select">
+												<SelectItem value="admin">Admin</SelectItem>
+												<SelectItem value="staff">Staff</SelectItem>
+												<SelectItem value="field-officer">
+													Field Officer
+												</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Phone</p>
+										<Input
+											type="text"
+											placeholder="Enter phone number"
+											className="focus:border-none"
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+							<Button
+								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs px-4 py-2"
+								onClick={closeModal}>
+								Cancel
+							</Button>
+							<Button
+								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
+								disabled={isLoading}>
+								{isLoading ? "Creating User..." : "Create User"}
+							</Button>
+						</div>
+					</div>
+				</Modal>
+			)}
+			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
+				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
+					{["View All", "Active", "Inactive", "Suspended"].map(
+						(status, index, arr) => (
+							<p
+								key={status}
+								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+									selectedStatus === status
+										? "bg-primary-5 text-dark-1"
+										: "text-dark-1"
+								} 
+			${index === 0 ? "rounded-l-lg firstRound" : ""} 
+			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
+								onClick={() => handleStatusFilter(status)}>
+								{status}
+							</p>
+						)
+					)}
+				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input
-						placeholder="Search Device..."
+						placeholder="Search User..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"
 					/>
-					<Button
-						className="border-[#E8E8E8] border-[1px] bg-white"
-						onClick={bulkDeletePosting}>
-						<IconTrash /> Delete
-					</Button>
-					{/* filter by type */}
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
+					<Button
+						className="bg-secondary-1 border-[1px] border-[#173C3D] text-white font-inter cborder"
+						onClick={openModal}>
+						<IconFileExport /> Add New Staff
+					</Button>
 				</div>
 			</div>
 
