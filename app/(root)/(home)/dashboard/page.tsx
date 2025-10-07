@@ -5,7 +5,7 @@ import StatCard from "@/components/StatCard";
 import SpendOverview from "@/components/TrafficSources";
 import TransactionTracker from "@/components/TransactionTracker";
 import { Skeleton } from "@/components/ui/skeleton";
-import Table from "@/config/columns";
+import EndUserTable from "@/config/end-user-columns";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
@@ -313,7 +313,7 @@ function Dashboard() {
 
 				{/* Recent transactions and activity feed */}
 				<div className="w-full overflow-x-auto">
-					<Table />
+					<EndUserTable />
 				</div>
 			</div>
 		</div>
