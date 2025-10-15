@@ -22,7 +22,7 @@ const StatCard: React.FC<StatCardProps> = ({
 	return (
 		<div
 			className={clsx(
-				"rounded-xl border border-gray-200 p-4 flex justify-between items-start bg-white shadow-sm w-full",
+				"rounded-xl border border-gray-200 p-4 flex justify-between items-start bg-white shadow-sm",
 				className // will merge optional className from parent
 			)}>
 			<div>
