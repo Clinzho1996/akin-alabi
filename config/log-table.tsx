@@ -199,7 +199,7 @@ export function LogDataTable<TData, TValue>({
 						placeholder="Search Activity..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="focus:border-none bg-[#F9FAFB] w-[50%]"
+						className="focus:border-none bg-[#F9FAFB] w-full"
 					/>
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />

@@ -1,61 +1,55 @@
 "use client";
 
-import { ColumnDef, Row } from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 
 import Loader from "@/components/Loader";
-import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import Image from "next/image";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { BeneficiaryAttendanceDataTable } from "./ben-attendance-table";
 
 // This type is used to define the shape of our data.
-export type EndUser = {
+export type AttendanceRecord = {
 	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
-	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
-	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
+	user_id: string;
+	event_id: string;
+	beneficiary_id: string;
+	benefit_id: string;
+	time_in: string;
+	time_out: string | null;
+	created_at: string | null;
+	updated_at: string | null;
+	event: {
+		id: string;
+		name: string;
+		start_date: string;
+		start_time: string;
+		end_date: string;
+		end_time: string;
+		location: string;
+		is_active: boolean;
+		created_at: string;
+		updated_at: string;
+	};
+	benefit: {
+		id: string;
+		name: string;
+		type: string;
+		is_active: boolean;
+		created_at: string;
+		updated_at: string;
+	};
 };
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, unknown>;
+	data: AttendanceRecord[];
 }
 
 declare module "next-auth" {
@@ -64,27 +58,14 @@ declare module "next-auth" {
 	}
 }
 
-interface EditData {
-	id: string;
-	full_name: string;
-	email: string;
-	gender: string;
-	date_of_birth: string;
-}
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const BeneficiaryAttendanceTable = () => {
-	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
+	const params = useParams();
+	const beneficiaryId = params.id as string;
+
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [tableData, setTableData] = useState<EndUser[]>([]);
-	const [isEditModalOpen, setEditModalOpen] = useState(false);
-	const [editData, setEditData] = useState<EditData>({
-		id: "",
-		full_name: "",
-		email: "",
-		gender: "male",
-		date_of_birth: "",
-	});
+	const [tableData, setTableData] = useState<AttendanceRecord[]>([]);
 	const [pagination, setPagination] = useState({
 		page: 1,
 		limit: 50,
@@ -92,72 +73,7 @@ const BeneficiaryAttendanceTable = () => {
 		pages: 1,
 	});
 
-	const openEditModal = (row: Row<EndUser>) => {
-		const user = row.original;
-		setEditData({
-			id: user.id,
-			full_name: user.full_name || "",
-			email: user.email,
-			gender: user.gender || "male",
-			date_of_birth: user.date_of_birth ? user.date_of_birth.split("T")[0] : "",
-		});
-		setEditModalOpen(true);
-	};
-
-	const closeEditModal = () => {
-		setEditModalOpen(false);
-	};
-
-	const handleEditUser = async () => {
-		try {
-			setIsLoading(true);
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				return;
-			}
-
-			const response = await axios.put(
-				`https://api.medbankr.ai/api/v1/administrator/user/${editData.id}`,
-				{
-					full_name: editData.full_name,
-					email: editData.email,
-					gender: editData.gender,
-					date_of_birth: editData.date_of_birth,
-				},
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				toast.success("User updated successfully.");
-				fetchUsers();
-				closeEditModal();
-			}
-		} catch (error) {
-			console.error("Error updating user:", error);
-			toast.error("Failed to update user. Please try again.");
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const openDeleteModal = (row: Row<EndUser>) => {
-		setSelectedRow(row.original);
-		setDeleteModalOpen(true);
-	};
-
-	const closeDeleteModal = () => {
-		setDeleteModalOpen(false);
-	};
-
-	const fetchUsers = async (page = 1, limit = 50) => {
+	const fetchAttendanceRecords = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -170,7 +86,7 @@ const BeneficiaryAttendanceTable = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
+				`${BASE_URL}/beneficiary/attendance/history/${beneficiaryId}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -179,95 +95,68 @@ const BeneficiaryAttendanceTable = () => {
 				}
 			);
 
-			if (response.data.status === true) {
-				const formattedData = response.data.data.map((user) => ({
-					id: user._id,
-					_id: user._id,
-					createdAt: user.createdAt,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
-				}));
+			if (response.data.status === "success") {
+				setTableData(response.data.data);
 
-				setTableData(formattedData);
+				// If your API returns pagination data, update it here
+				// setPagination(response.data.pagination);
 
-				if (response.data.pagination) {
-					setPagination(response.data.pagination);
-				}
-
-				console.log("Users Data:", formattedData);
-				console.log("Pagination:", response.data.pagination);
+				console.log("Attendance Data:", response.data.data);
 			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching attendance data:", error);
+			toast.error("Failed to fetch attendance records.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50);
-	}, []);
-
-	const deleteUser = async (id: string) => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				return;
-			}
-
-			const response = await axios.delete(
-				`https://api.medbankr.ai/api/v1/administrator/user`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-						"Content-Type": "application/json",
-					},
-					data: { id },
-				}
-			);
-
-			if (response.status === 200) {
-				setTableData((prevData) => prevData.filter((user) => user.id !== id));
-				toast.success("User deleted successfully.");
-			}
-		} catch (error) {
-			console.error("Error deleting user:", error);
-			toast.error("Failed to delete user. Please try again.");
+		if (beneficiaryId) {
+			fetchAttendanceRecords(1, 50);
 		}
-	};
+	}, [beneficiaryId]);
 
-	const formatDate = (rawDate: string | Date | null) => {
-		if (!rawDate) return "N/A";
+	const formatDateTime = (dateTimeString: string) => {
+		if (!dateTimeString) return "N/A";
 
-		const options: Intl.DateTimeFormatOptions = {
-			year: "numeric",
-			month: "long",
+		const date = new Date(dateTimeString);
+		return date.toLocaleString("en-US", {
+			month: "short",
 			day: "numeric",
-		};
-		const parsedDate =
-			typeof rawDate === "string" ? new Date(rawDate) : rawDate;
-		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: true,
+		});
 	};
 
-	const loadMoreUsers = () => {
+	const formatTime = (dateTimeString: string) => {
+		if (!dateTimeString) return "N/A";
+
+		const date = new Date(dateTimeString);
+		return date.toLocaleString("en-US", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: true,
+		});
+	};
+
+	const getStatus = (timeOut: string | null) => {
+		return timeOut ? "completed" : "active";
+	};
+
+	const getStatusColor = (status: string) => {
+		return status === "completed" ? "green" : "blue";
+	};
+
+	const loadMoreRecords = () => {
 		if (pagination.page < pagination.pages) {
-			fetchUsers(pagination.page + 1, pagination.limit);
+			fetchAttendanceRecords(pagination.page + 1, pagination.limit);
 		}
 	};
 
-	const columns: ColumnDef<EndUser>[] = [
+	const columns: ColumnDef<AttendanceRecord>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -291,71 +180,63 @@ const BeneficiaryAttendanceTable = () => {
 			),
 		},
 		{
-			accessorKey: "public_id",
-			header: "User ID",
+			accessorKey: "id",
+			header: "Attendance ID",
 			cell: ({ row }) => {
-				const publicId = row.getValue<string>("public_id") || "N/A";
-				return <span className="text-xs text-primary-6">{publicId}</span>;
+				const attendanceId = row.getValue<string>("id") || "N/A";
+				return <span className="text-xs text-primary-6">{attendanceId}</span>;
 			},
 		},
 		{
-			accessorKey: "full_name",
-			header: "Full Name",
-			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-				const pic = row.original.pic;
-				return (
-					<div className="flex flex-row justify-start items-center gap-2">
-						<Image
-							src={pic || "/images/avatar.png"}
-							alt={name}
-							width={30}
-							height={30}
-							className="w-8 h-8 rounded-full object-cover"
-						/>
-						<span className="text-xs text-primary-6 capitalize">{name}</span>
-					</div>
-				);
-			},
-		},
-		{
-			accessorKey: "email",
+			accessorKey: "event.name",
 			header: "Event Name",
 			cell: ({ row }) => {
-				const email = row.getValue<string>("event") || "Health Outreach";
-				return <span className="text-xs text-primary-6">{email}</span>;
+				const eventName = row.original.event.name || "N/A";
+				return <span className="text-xs text-primary-6">{eventName}</span>;
 			},
 		},
-
 		{
-			accessorKey: "role",
-			header: "Operator Name",
+			accessorKey: "event.location",
+			header: "Location",
 			cell: ({ row }) => {
-				const role = row.getValue<string>("operator") || "Dev Clinton";
+				const location = row.original.event.location || "N/A";
+				return <span className="text-xs text-primary-6">{location}</span>;
+			},
+		},
+		{
+			accessorKey: "benefit.name",
+			header: "Benefit Received",
+			cell: ({ row }) => {
+				const benefitName = row.original.benefit.name || "N/A";
 				return (
-					<span className="text-xs text-black capitalize flex gap-1">
-						<p className="text-primary-6">(STF-124)</p>
-						{role}{" "}
+					<span className="text-xs text-primary-6 capitalize">
+						{benefitName}
 					</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "role",
-			header: "Time In + Out",
+			accessorKey: "time_in",
+			header: "Time In",
 			cell: ({ row }) => {
-				const role = row.getValue<string>("operator") || "08:00am  - 04:20pm";
+				const timeIn = row.original.time_in;
+				return <span className="text-xs text-black">{formatTime(timeIn)}</span>;
+			},
+		},
+		{
+			accessorKey: "time_out",
+			header: "Time Out",
+			cell: ({ row }) => {
+				const timeOut = row.original.time_out;
 				return (
-					<span className="text-xs text-black capitalize flex gap-1">
-						{role}
+					<span className="text-xs text-black">
+						{timeOut ? formatTime(timeOut) : "Still Active"}
 					</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "status",
+			accessorKey: "time_out",
 			header: ({ column }) => {
 				return (
 					<Button
@@ -370,11 +251,22 @@ const BeneficiaryAttendanceTable = () => {
 				);
 			},
 			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
+				const timeOut = row.original.time_out;
+				const status = getStatus(timeOut);
 				return (
-					<div className={`status ${status === "active" ? "green" : "red"}`}>
-						{status}
-					</div>
+					<div className={`status ${getStatusColor(status)}`}>{status}</div>
+				);
+			},
+		},
+		{
+			accessorKey: "created_at",
+			header: "Date",
+			cell: ({ row }) => {
+				const createdAt = row.original.created_at || row.original.time_in;
+				return (
+					<span className="text-xs text-primary-6">
+						{formatDateTime(createdAt)}
+					</span>
 				);
 			},
 		},
@@ -387,10 +279,15 @@ const BeneficiaryAttendanceTable = () => {
 			) : (
 				<>
 					<BeneficiaryAttendanceDataTable columns={columns} data={tableData} />
+					{tableData.length === 0 && !isLoading && (
+						<div className="text-center p-8 text-gray-500">
+							No attendance records found for this beneficiary.
+						</div>
+					)}
 					{pagination.page < pagination.pages && (
 						<div className="mt-4 flex justify-center">
 							<Button
-								onClick={loadMoreUsers}
+								onClick={loadMoreRecords}
 								className="bg-primary-1 text-white"
 								disabled={isLoading}>
 								{isLoading
@@ -400,132 +297,6 @@ const BeneficiaryAttendanceTable = () => {
 						</div>
 					)}
 				</>
-			)}
-
-			{isEditModalOpen && (
-				<Modal
-					isOpen={isEditModalOpen}
-					onClose={closeEditModal}
-					title="Edit User (Staff)">
-					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
-						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
-							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">First Name</p>
-										<Input
-											type="text"
-											placeholder="Enter First Name"
-											className="focus:border-none"
-											value={editData.full_name}
-											onChange={(e) =>
-												setEditData({ ...editData, full_name: e.target.value })
-											}
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Last Name</p>
-										<Input
-											type="text"
-											placeholder="Enter Last Name"
-											className="focus:border-none"
-											value={editData.full_name}
-											onChange={(e) =>
-												setEditData({ ...editData, full_name: e.target.value })
-											}
-										/>
-									</div>
-								</div>
-
-								{/* Email, Role & Phone Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Email Address</p>
-										<Input
-											type="text"
-											placeholder="Enter email address"
-											className="focus:border-none"
-											value={editData.email}
-											onChange={(e) =>
-												setEditData({ ...editData, email: e.target.value })
-											}
-										/>
-									</div>
-
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Role</p>
-										<Select
-											value={editData.gender}
-											onValueChange={(value) =>
-												setEditData({ ...editData, gender: value })
-											}>
-											<SelectTrigger className="w-full focus:border-none ">
-												<SelectValue placeholder="Select role" />
-											</SelectTrigger>
-											<SelectContent className="bg-white z-10 select">
-												<SelectItem value="admin">Admin</SelectItem>
-												<SelectItem value="staff">Staff</SelectItem>
-												<SelectItem value="field-officer">
-													Field Officer
-												</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Phone</p>
-										<Input
-											type="text"
-											placeholder="Enter phone number"
-											className="focus:border-none"
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-							<Button
-								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs px-4 py-2"
-								onClick={closeEditModal}>
-								Cancel
-							</Button>
-							<Button
-								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
-								onClick={handleEditUser}
-								disabled={isLoading}>
-								{isLoading ? "Updating User..." : "Update User"}
-							</Button>
-						</div>
-					</div>
-				</Modal>
-			)}
-
-			{isDeleteModalOpen && (
-				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
-					<p>
-						Are you sure you want to delete{" "}
-						{selectedRow?.full_name || selectedRow?.email}'s account?
-					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeDeleteModal}>
-							Cancel
-						</Button>
-						<Button
-							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={async () => {
-								if (selectedRow) {
-									await deleteUser(selectedRow.id);
-									closeDeleteModal();
-								}
-							}}>
-							Yes, Confirm
-						</Button>
-					</div>
-				</Modal>
 			)}
 		</>
 	);

@@ -3,7 +3,7 @@ const nextConfig = {
 	images: {
 		domains: [
 			"lh3.googleusercontent.com",
-			"api.wowdev.com.ng",
+			"akin.wowdev.com.ng",
 			"res.cloudinary.com",
 		],
 	},

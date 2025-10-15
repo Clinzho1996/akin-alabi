@@ -21,33 +21,28 @@ import { useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import { Skeleton } from "./ui/skeleton";
 
-interface GraphData {
+interface AttendanceData {
 	month: string;
-	year: number;
-	users: number;
-	providers: number;
-	total: number;
+	total_attendance: number;
 }
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
-	data: {
-		period: string;
-		total_users: number;
-		total_providers: number;
-		graph_data: GraphData[];
-	};
+	year: string;
+	data: AttendanceData[];
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 function TransactionTracker() {
-	const [chartData, setChartData] = useState<GraphData[]>([]);
+	const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [selectedYear, setSelectedYear] = useState<string>(
 		new Date().getFullYear().toString()
 	);
 
-	const fetchTransactionData = async () => {
+	const fetchAttendanceData = async (year: string) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -59,7 +54,7 @@ function TransactionTracker() {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/dashboard/graph?months=12`, // Updated endpoint
+				`${BASE_URL}/analytics/attendance/graph?year=${year}`, // Updated endpoint
 				{
 					headers: {
 						Accept: "application/json",
@@ -68,40 +63,25 @@ function TransactionTracker() {
 				}
 			);
 
-			if (response.data.status === true) {
-				const { graph_data } = response.data.data;
-
-				// Filter data by selected year if needed, or use all data
-				const filteredData = selectedYear
-					? graph_data.filter((item) => item.year.toString() === selectedYear)
-					: graph_data;
-
-				console.log("User Growth Data:", filteredData);
-				setChartData(filteredData);
+			if (response.data.status === "success") {
+				console.log("Attendance Data:", response.data.data);
+				setAttendanceData(response.data.data);
 			}
 		} catch (error) {
-			console.error("Error fetching user growth data:", error);
+			console.error("Error fetching attendance data:", error);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchTransactionData();
+		fetchAttendanceData(selectedYear);
 	}, [selectedYear]);
 
 	const chartConfig = {
-		Users: {
-			label: "Users",
+		attendance: {
+			label: "Attendance",
 			color: "hsl(var(--chart-1))",
-		},
-		Providers: {
-			label: "Providers",
-			color: "hsl(var(--chart-2))",
-		},
-		Total: {
-			label: "Total",
-			color: "hsl(var(--chart-3))",
 		},
 	} satisfies ChartConfig;
 
@@ -109,10 +89,35 @@ function TransactionTracker() {
 		return new Intl.NumberFormat().format(num);
 	};
 
-	// Get unique years from graph data for the dropdown
-	const availableYears = Array.from(
-		new Set(chartData.map((item) => item.year))
-	).sort((a, b) => b - a);
+	// Generate year options (current year and previous years)
+	const currentYear = new Date().getFullYear();
+	const yearOptions = Array.from({ length: 5 }, (_, i) =>
+		(currentYear - i).toString()
+	);
+
+	// Prepare chart data - ensure all months are included in correct order
+	const monthOrder = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	];
+
+	const chartData = monthOrder.map((month) => {
+		const existingData = attendanceData.find((item) => item.month === month);
+		return {
+			month,
+			attendance: existingData ? existingData.total_attendance : 0,
+		};
+	});
 
 	return (
 		<div className="p-3 bg-white rounded-lg border border-[#E2E4E9]">
@@ -128,9 +133,8 @@ function TransactionTracker() {
 						</SelectTrigger>
 						<SelectContent className="bg-white">
 							<SelectGroup className="bg-white">
-								<SelectItem value="all">All Time</SelectItem>
-								{availableYears.map((year) => (
-									<SelectItem key={year} value={year.toString()}>
+								{yearOptions.map((year) => (
+									<SelectItem key={year} value={year}>
 										{year}
 									</SelectItem>
 								))}
@@ -161,57 +165,30 @@ function TransactionTracker() {
 								tickLine={false}
 								axisLine={false}
 								tickMargin={1}
+								tickFormatter={(value) => value.slice(0, 3)} // Show abbreviated month names
 							/>
 							<ChartTooltip
 								cursor={{ stroke: "#ccc", strokeWidth: 1 }}
 								content={({ payload, label }) => {
 									if (!payload || payload.length === 0) return null;
 
-									const users = payload.find(
-										(p) => p.dataKey === "users"
+									const attendance = payload.find(
+										(p) => p.dataKey === "attendance"
 									)?.value;
-									const providers = payload.find(
-										(p) => p.dataKey === "providers"
-									)?.value;
-									const total = payload.find(
-										(p) => p.dataKey === "total"
-									)?.value;
-
-									// Find the year from the payload
-									const year =
-										payload[0]?.payload?.year || new Date().getFullYear();
 
 									return (
-										<div className="custom-tooltip p-3 bg-white border-[1px] shadow-lg border-[#E4E4E7] rounded-lg w-[280px]">
+										<div className="custom-tooltip p-3 bg-white border-[1px] shadow-lg border-[#E4E4E7] rounded-lg w-[200px]">
 											<p className="text-center font-bold font-inter">
-												{label} {year}
+												{label} {selectedYear}
 											</p>
 											<div className="flex flex-col mt-3 gap-2">
 												<div className="flex justify-between items-center">
 													<div className="flex items-center gap-1">
 														<IconRectangleFilled size={10} color="#5F60E7" />
-														<p className="text-xs text-gray-600">Users</p>
+														<p className="text-xs text-gray-600">Attendance</p>
 													</div>
 													<p className="text-sm font-bold">
-														{formatNumber(Number(users) || 0)}
-													</p>
-												</div>
-												<div className="flex justify-between items-center">
-													<div className="flex items-center gap-1">
-														<IconRectangleFilled size={10} color="#CC27DD" />
-														<p className="text-xs text-gray-600">Providers</p>
-													</div>
-													<p className="text-sm font-bold">
-														{formatNumber(Number(providers) || 0)}
-													</p>
-												</div>
-												<div className="flex justify-between items-center">
-													<div className="flex items-center gap-1">
-														<IconRectangleFilled size={10} color="#10B981" />
-														<p className="text-xs text-gray-600">Total</p>
-													</div>
-													<p className="text-sm font-bold">
-														{formatNumber(Number(total) || 0)}
+														{formatNumber(Number(attendance) || 0)}
 													</p>
 												</div>
 											</div>
@@ -220,26 +197,12 @@ function TransactionTracker() {
 								}}
 							/>
 							<Line
-								dataKey="users"
+								dataKey="attendance"
 								type="monotone"
 								stroke="#5F60E7"
 								strokeWidth={2}
 								dot={{ r: 3 }}
-							/>
-							<Line
-								dataKey="providers"
-								type="monotone"
-								stroke="#CC27DD"
-								strokeWidth={2}
-								dot={{ r: 3 }}
-							/>
-							<Line
-								dataKey="total"
-								type="monotone"
-								stroke="#10B981"
-								strokeWidth={2}
-								dot={{ r: 3 }}
-								strokeDasharray="3 3"
+								activeDot={{ r: 5 }}
 							/>
 						</LineChart>
 					</ChartContainer>

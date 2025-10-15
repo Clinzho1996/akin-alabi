@@ -7,27 +7,28 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type ApiResponse = {
-	status: boolean;
+	status: string;
 	message: string;
 	data: {
-		total_logins: number;
-		platforms: {
-			web: { count: number; percentage: number };
-			android: { count: number; percentage: number };
-			ios: { count: number; percentage: number };
-			unknown: { count: number; percentage: number };
-		};
+		total_staff: number;
+		total_beneficiaries: number;
+		beneficiaries_with_facial_bio: number;
+		beneficiaries_without_facial_bio: number;
+		total_events: number;
+		active_beneficiaries: number;
+		inactive_beneficiaries: number;
 	};
 };
 
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 function TrafficSources() {
-	const [selectedRange] = useState<"today" | "week" | "month" | "all">("all");
-	const [trafficData, setTrafficData] = useState<
-		{ platform: string; value: number; color: string }[]
+	const [beneficiariesData, setBeneficiariesData] = useState<
+		{ category: string; value: number; color: string }[]
 	>([]);
 	const [isLoading, setIsLoading] = useState(false);
 
-	const fetchTrafficData = async (period: string) => {
+	const fetchBeneficiariesData = async () => {
 		setIsLoading(true);
 		try {
 			const session = await getSession();
@@ -37,53 +38,52 @@ function TrafficSources() {
 				return;
 			}
 
-			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/dashboard/traffic?period=${period}`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${session.accessToken}`,
+			const response = await axios.get<ApiResponse>(`${BASE_URL}/analytics`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${session.accessToken}`,
+				},
+			});
+
+			if (response.data.status === "success") {
+				const data = response.data.data;
+				const formattedData = [
+					{
+						category: "Total Beneficiaries",
+						value: data.total_beneficiaries,
+						color: "#DCB085",
 					},
-				}
-			);
+					{
+						category: "Active Beneficiaries",
+						value: data.active_beneficiaries,
+						color: "#008027",
+					},
+					{
+						category: "Inactive Beneficiaries",
+						value: data.inactive_beneficiaries,
+						color: "#277EFF",
+					},
+				];
 
-			const platforms = response.data.data.platforms;
-			const formattedData = [
-				{
-					platform: "IOS",
-					value: platforms.ios.count,
-					color: "#DCB085",
-				},
-				{
-					platform: "Android",
-					value: platforms.android.count,
-					color: "#008027",
-				},
-				{
-					platform: "Web",
-					value: platforms.web.count,
-					color: "#277EFF",
-				},
-			];
-
-			setTrafficData(formattedData);
+				setBeneficiariesData(formattedData);
+			}
 		} catch (error) {
-			console.error("Error fetching traffic data:", error);
+			console.error("Error fetching beneficiaries data:", error);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchTrafficData(selectedRange);
-	}, [selectedRange]);
+		fetchBeneficiariesData();
+	}, []);
 
-	const maxValue = Math.max(...trafficData.map((item) => item.value), 1);
+	const maxValue = Math.max(...beneficiariesData.map((item) => item.value), 1);
 
 	const renderProgressBar = (
 		value: number,
 		color: string,
-		platform: string
+		category?: string
 	) => {
 		const percentage = (value / maxValue) * 100;
 
@@ -93,7 +93,7 @@ function TrafficSources() {
 				<div className="w-full h-8 bg-gray-200 overflow-hidden">
 					{/* Progress Fill */}
 					<div
-						className="h-full transition-all bg-gradient-to-r from- duration-500 ease-out"
+						className="h-full transition-all duration-500 ease-out"
 						style={{
 							width: `${percentage}%`,
 							backgroundColor: color,
@@ -101,9 +101,9 @@ function TrafficSources() {
 					/>
 				</div>
 
-				{/* Platform label and value */}
+				{/* Category label and value */}
 				<div className="flex justify-between items-center mt-2">
-					<p className="text-sm text-gray-600">{platform}</p>
+					<p className="text-sm text-gray-600">{category}</p>
 					<p className="text-sm font-semibold text-gray-900">
 						{value.toLocaleString()}
 					</p>
@@ -119,22 +119,22 @@ function TrafficSources() {
 				<div className="flex items-center gap-2">
 					<Image src="/images/info.png" alt="icon" width={18} height={18} />
 					<h2 className="text-sm font-medium text-gray-800">
-						Enrollment Funnel
+						Beneficiaries Overview
 					</h2>
 				</div>
 
 				<div className="flex flex-row justify-between items-center gap-5">
 					<div className="flex flex-row justify-start items-center gap-2">
 						<IconCircleFilled size={12} color="#DCB085" />
-						<p className="text-sm text-gray-600">Captured</p>
+						<p className="text-sm text-gray-600">Total</p>
 					</div>
 					<div className="flex flex-row justify-start items-center gap-2">
 						<IconCircleFilled size={12} color="#008027" />
-						<p className="text-sm text-gray-600">Verified</p>
+						<p className="text-sm text-gray-600">Active</p>
 					</div>
 					<div className="flex flex-row justify-start items-center gap-2">
 						<IconCircleFilled size={12} color="#277EFF" />
-						<p className="text-sm text-gray-600">Pending</p>
+						<p className="text-sm text-gray-600">Inactive</p>
 					</div>
 				</div>
 			</div>
@@ -142,21 +142,19 @@ function TrafficSources() {
 			{/* Body */}
 			<div className="space-y-6">
 				{isLoading ? (
-					<p className="text-sm text-gray-500">Loading traffic data...</p>
+					<p className="text-sm text-gray-500">Loading beneficiaries data...</p>
 				) : (
-					trafficData.map(({ platform, value, color }, idx) => (
+					beneficiariesData.map(({ category, value, color }, idx) => (
 						<div key={idx} className="mt-4">
-							{/* Platform header */}
+							{/* Category header */}
 							<div className="flex justify-between items-center mb-2">
-								<p className="text-sm text-gray-800">
-									Total user from {platform}
-								</p>
+								<p className="text-sm text-gray-800">{category}</p>
 							</div>
 
-							{renderProgressBar(value, color, platform)}
+							{renderProgressBar(value, color)}
 
 							{/* Divider */}
-							{idx < trafficData.length - 1 && (
+							{idx < beneficiariesData.length - 1 && (
 								<hr className="my-4 border-gray-200" />
 							)}
 						</div>

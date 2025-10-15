@@ -15,7 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { IconTrash } from "@tabler/icons-react";
+import { IconRefresh, IconTrash, IconUserPause } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -23,40 +23,25 @@ import { toast } from "react-toastify";
 import { BenefitDataTable } from "./benefit-table";
 
 // This type is used to define the shape of our data.
-export type EndUser = {
+export type Benefit = {
 	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
-	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
+	name: string;
+	type: string;
+	is_active: boolean;
 	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
-	type?: string;
+	updated_at: string;
 };
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
+	data: Benefit[];
 	pagination: {
+		prev_page_url: string | null;
+		next_page_url: string | null;
+		current_page: number;
 		total: number;
-		page: number;
-		limit: number;
-		pages: number;
 	};
-	filters: Record<string, unknown>;
 }
 
 declare module "next-auth" {
@@ -67,24 +52,23 @@ declare module "next-auth" {
 
 interface EditData {
 	id: string;
-	full_name: string;
-	email: string;
-	gender: string;
-	date_of_birth: string;
+	name: string;
+	type: string;
 }
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const BenefitTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
+	const [selectedRow, setSelectedRow] = useState<Benefit | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [tableData, setTableData] = useState<EndUser[]>([]);
+	const [tableData, setTableData] = useState<Benefit[]>([]);
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
+	const [isStatusModalOpen, setStatusModalOpen] = useState(false);
 	const [editData, setEditData] = useState<EditData>({
 		id: "",
-		full_name: "",
-		email: "",
-		gender: "male",
-		date_of_birth: "",
+		name: "",
+		type: "material",
 	});
 	const [pagination, setPagination] = useState({
 		page: 1,
@@ -93,14 +77,12 @@ const BenefitTable = () => {
 		pages: 1,
 	});
 
-	const openEditModal = (row: Row<EndUser>) => {
-		const user = row.original;
+	const openEditModal = (row: Row<Benefit>) => {
+		const benefit = row.original;
 		setEditData({
-			id: user.id,
-			full_name: user.full_name || "",
-			email: user.email,
-			gender: user.gender || "male",
-			date_of_birth: user.date_of_birth ? user.date_of_birth.split("T")[0] : "",
+			id: benefit.id,
+			name: benefit.name,
+			type: benefit.type,
 		});
 		setEditModalOpen(true);
 	};
@@ -109,7 +91,16 @@ const BenefitTable = () => {
 		setEditModalOpen(false);
 	};
 
-	const handleEditUser = async () => {
+	const openStatusModal = (row: Row<Benefit>) => {
+		setSelectedRow(row.original);
+		setStatusModalOpen(true);
+	};
+
+	const closeStatusModal = () => {
+		setStatusModalOpen(false);
+	};
+
+	const handleEditBenefit = async () => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -121,12 +112,10 @@ const BenefitTable = () => {
 			}
 
 			const response = await axios.put(
-				`https://api.medbankr.ai/api/v1/administrator/user/${editData.id}`,
+				`${BASE_URL}/benefit/${editData.id}`,
 				{
-					full_name: editData.full_name,
-					email: editData.email,
-					gender: editData.gender,
-					date_of_birth: editData.date_of_birth,
+					name: editData.name,
+					type: editData.type,
 				},
 				{
 					headers: {
@@ -136,20 +125,59 @@ const BenefitTable = () => {
 				}
 			);
 
-			if (response.status === 200) {
-				toast.success("User updated successfully.");
-				fetchUsers();
+			if (response.data.status === "success") {
+				toast.success("Benefit updated successfully.");
+				fetchBenefits();
 				closeEditModal();
 			}
 		} catch (error) {
-			console.error("Error updating user:", error);
-			toast.error("Failed to update user. Please try again.");
+			console.error("Error updating benefit:", error);
+			toast.error("Failed to update benefit. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const openDeleteModal = (row: Row<EndUser>) => {
+	const handleToggleStatus = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken || !selectedRow) {
+				console.error("No access token or benefit selected.");
+				return;
+			}
+
+			const endpoint = selectedRow.is_active
+				? `${BASE_URL}/benefit/deactivate/${selectedRow.id}`
+				: `${BASE_URL}/benefit/activate/${selectedRow.id}`;
+
+			const response = await axios.patch(
+				endpoint,
+				{},
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "success") {
+				toast.success(response.data.message);
+				fetchBenefits();
+				closeStatusModal();
+			}
+		} catch (error) {
+			console.error("Error toggling benefit status:", error);
+			toast.error("Failed to update benefit status. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const openDeleteModal = (row: Row<Benefit>) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
@@ -158,7 +186,7 @@ const BenefitTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchUsers = async (page = 1, limit = 50) => {
+	const fetchBenefits = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -171,7 +199,7 @@ const BenefitTable = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
+				`${BASE_URL}/benefit?page=${page}&limit=${limit}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -180,45 +208,35 @@ const BenefitTable = () => {
 				}
 			);
 
-			if (response.data.status === true) {
-				const formattedData = response.data.data.map((user) => ({
-					id: user._id,
-					_id: user._id,
-					createdAt: user.createdAt,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
-					type: user.type,
-				}));
-
-				setTableData(formattedData);
+			if (response.data.status === "success") {
+				setTableData(response.data.data);
 
 				if (response.data.pagination) {
-					setPagination(response.data.pagination);
+					const paginationData = response.data.pagination;
+					setPagination({
+						page: paginationData.current_page,
+						limit: 50, // You might want to get this from API if available
+						total: paginationData.total,
+						pages: Math.ceil(paginationData.total / 50), // Adjust based on your limit
+					});
 				}
 
-				console.log("Users Data:", formattedData);
+				console.log("Benefits Data:", response.data.data);
 				console.log("Pagination:", response.data.pagination);
 			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching benefits data:", error);
+			toast.error("Failed to fetch benefits.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50);
+		fetchBenefits(1, 50);
 	}, []);
 
-	const deleteUser = async (id: string) => {
+	const deleteBenefit = async (id: string) => {
 		try {
 			const session = await getSession();
 			const accessToken = session?.accessToken;
@@ -228,25 +246,22 @@ const BenefitTable = () => {
 				return;
 			}
 
-			const response = await axios.delete(
-				`https://api.medbankr.ai/api/v1/administrator/user`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-						"Content-Type": "application/json",
-					},
-					data: { id },
-				}
-			);
+			const response = await axios.delete(`${BASE_URL}/benefit/${id}`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (response.status === 200) {
-				setTableData((prevData) => prevData.filter((user) => user.id !== id));
-				toast.success("User deleted successfully.");
+			if (response.data.status === "success") {
+				setTableData((prevData) =>
+					prevData.filter((benefit) => benefit.id !== id)
+				);
+				toast.success("Benefit deleted successfully.");
 			}
 		} catch (error) {
-			console.error("Error deleting user:", error);
-			toast.error("Failed to delete user. Please try again.");
+			console.error("Error deleting benefit:", error);
+			toast.error("Failed to delete benefit. Please try again.");
 		}
 	};
 
@@ -255,7 +270,7 @@ const BenefitTable = () => {
 
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
-			month: "long",
+			month: "short",
 			day: "numeric",
 		};
 		const parsedDate =
@@ -263,13 +278,13 @@ const BenefitTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const loadMoreUsers = () => {
+	const loadMoreBenefits = () => {
 		if (pagination.page < pagination.pages) {
-			fetchUsers(pagination.page + 1, pagination.limit);
+			fetchBenefits(pagination.page + 1, pagination.limit);
 		}
 	};
 
-	const columns: ColumnDef<EndUser>[] = [
+	const columns: ColumnDef<Benefit>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -293,19 +308,22 @@ const BenefitTable = () => {
 			),
 		},
 		{
-			accessorKey: "public_id",
-			header: "User ID",
+			accessorKey: "id",
+			header: "Benefit ID",
 			cell: ({ row }) => {
-				const publicId = row.getValue<string>("public_id") || "N/A";
-				return <span className="text-xs text-primary-6">{publicId}</span>;
+				const benefitId = row.original.id;
+				return (
+					<span className="text-xs text-primary-6">
+						{benefitId.slice(0, 8)}...
+					</span>
+				);
 			},
 		},
 		{
-			accessorKey: "full_name",
+			accessorKey: "name",
 			header: "Name of Benefit",
 			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-
+				const name = row.original.name;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<span className="text-xs text-primary-6 capitalize">{name}</span>
@@ -313,31 +331,28 @@ const BenefitTable = () => {
 				);
 			},
 		},
-
 		{
 			accessorKey: "type",
 			header: "Benefit Type",
 			cell: ({ row }) => {
-				const type = row.getValue<string>("type") || "Monetary";
+				const type = row.original.type;
 				return (
 					<span className="text-xs text-primary-6 capitalize">{type}</span>
 				);
 			},
 		},
-
 		{
 			accessorKey: "created_at",
-			header: "Date",
+			header: "Date Created",
 			cell: ({ row }) => {
-				const date = row.getValue<string>("created_at");
+				const date = row.original.created_at;
 				return (
 					<span className="text-xs text-primary-6">{formatDate(date)}</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "status",
+			accessorKey: "is_active",
 			header: ({ column }) => {
 				return (
 					<Button
@@ -352,20 +367,19 @@ const BenefitTable = () => {
 				);
 			},
 			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
+				const isActive = row.original.is_active;
 				return (
-					<div className={`status ${status === "active" ? "green" : "red"}`}>
-						{status}
+					<div className={`status ${isActive ? "green" : "red"}`}>
+						{isActive ? "Active" : "Inactive"}
 					</div>
 				);
 			},
 		},
-
 		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
-				const user = row.original;
+				const benefit = row.original;
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
@@ -373,6 +387,21 @@ const BenefitTable = () => {
 							className="border border-[#E8E8E8]"
 							onClick={() => openEditModal(row)}>
 							Edit
+						</Button>
+
+						<Button
+							className={`border border-[#E8E8E8] ${
+								benefit.is_active
+									? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+									: "bg-green-100 text-green-800 hover:bg-green-200"
+							}`}
+							onClick={() => openStatusModal(row)}>
+							{benefit.is_active ? (
+								<IconUserPause size={16} />
+							) : (
+								<IconRefresh size={16} />
+							)}
+							{benefit.is_active ? " Deactivate" : " Reactivate"}
 						</Button>
 
 						<Button
@@ -392,11 +421,20 @@ const BenefitTable = () => {
 				<Loader />
 			) : (
 				<>
-					<BenefitDataTable columns={columns} data={tableData} />
+					<BenefitDataTable
+						columns={columns}
+						data={tableData}
+						onRefresh={fetchBenefits}
+					/>
+					{tableData.length === 0 && !isLoading && (
+						<div className="text-center p-8 text-gray-500">
+							No benefits found.
+						</div>
+					)}
 					{pagination.page < pagination.pages && (
 						<div className="mt-4 flex justify-center">
 							<Button
-								onClick={loadMoreUsers}
+								onClick={loadMoreBenefits}
 								className="bg-primary-1 text-white"
 								disabled={isLoading}>
 								{isLoading
@@ -408,6 +446,7 @@ const BenefitTable = () => {
 				</>
 			)}
 
+			{/* Edit Benefit Modal */}
 			{isEditModalOpen && (
 				<Modal
 					isOpen={isEditModalOpen}
@@ -420,11 +459,11 @@ const BenefitTable = () => {
 									<p className="text-xs text-primary-6">Benefit Name</p>
 									<Input
 										type="text"
-										placeholder="Enter Full Name"
+										placeholder="Enter Benefit Name"
 										className="focus:border-none mt-2"
-										value={editData.full_name}
+										value={editData.name}
 										onChange={(e) =>
-											setEditData({ ...editData, full_name: e.target.value })
+											setEditData({ ...editData, name: e.target.value })
 										}
 									/>
 								</div>
@@ -432,16 +471,17 @@ const BenefitTable = () => {
 								<div className="w-full">
 									<p className="text-xs text-primary-6 mt-2">Benefit Type</p>
 									<Select
-										value={editData.gender}
+										value={editData.type}
 										onValueChange={(value) =>
-											setEditData({ ...editData, gender: value })
+											setEditData({ ...editData, type: value })
 										}>
 										<SelectTrigger className="w-full option select">
-											<SelectValue placeholder="Select benefit" />
+											<SelectValue placeholder="Select benefit type" />
 										</SelectTrigger>
 										<SelectContent className="bg-white z-10 select text-gray-300">
-											<SelectItem value="male">Monetary</SelectItem>
-											<SelectItem value="female">Material</SelectItem>
+											<SelectItem value="monetary">Monetary</SelectItem>
+											<SelectItem value="material">Material</SelectItem>
+											<SelectItem value="service">Service</SelectItem>
 										</SelectContent>
 									</Select>
 								</div>
@@ -455,7 +495,7 @@ const BenefitTable = () => {
 							</Button>
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs"
-								onClick={handleEditUser}
+								onClick={handleEditBenefit}
 								disabled={isLoading}>
 								{isLoading ? "Updating Benefit..." : "Update Benefit"}
 							</Button>
@@ -464,13 +504,53 @@ const BenefitTable = () => {
 				</Modal>
 			)}
 
+			{/* Status Toggle Modal */}
+			{isStatusModalOpen && (
+				<Modal onClose={closeStatusModal} isOpen={isStatusModalOpen}>
+					<p>
+						Are you sure you want to{" "}
+						{selectedRow?.is_active ? "deactivate" : "reactivate"} the benefit "
+						{selectedRow?.name}"?
+					</p>
+					<p className="text-sm text-primary-6">
+						{selectedRow?.is_active
+							? "This will make the benefit unavailable for new events."
+							: "This will make the benefit available for new events."}
+					</p>
+					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+						<Button
+							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
+							onClick={closeStatusModal}>
+							Cancel
+						</Button>
+						<Button
+							className={`${
+								selectedRow?.is_active
+									? "bg-yellow-700 text-white"
+									: "bg-secondary-1 text-white"
+							} font-inter text-xs`}
+							onClick={handleToggleStatus}
+							disabled={isLoading}>
+							{isLoading
+								? "Updating..."
+								: `Yes, ${
+										selectedRow?.is_active ? "Deactivate" : "Reactivate"
+								  }`}
+						</Button>
+					</div>
+				</Modal>
+			)}
+
+			{/* Delete Benefit Modal */}
 			{isDeleteModalOpen && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
 					<p>
-						Are you sure you want to delete{" "}
-						{selectedRow?.full_name || selectedRow?.email}'s benefit?
+						Are you sure you want to delete the benefit "{selectedRow?.name}"?
 					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
+					<p className="text-sm text-primary-6">
+						This action cannot be undone and will remove the benefit from all
+						associated events.
+					</p>
 					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
@@ -481,11 +561,11 @@ const BenefitTable = () => {
 							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
 							onClick={async () => {
 								if (selectedRow) {
-									await deleteUser(selectedRow.id);
+									await deleteBenefit(selectedRow.id);
 									closeDeleteModal();
 								}
 							}}>
-							Yes, Confirm
+							Yes, Delete Benefit
 						</Button>
 					</div>
 				</Modal>

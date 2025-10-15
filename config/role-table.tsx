@@ -52,6 +52,7 @@ import { EndUser } from "./end-user-columns";
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+	onRefresh?: () => void; // Add callback prop for refreshing data
 }
 
 interface ApiResponse {
@@ -72,9 +73,21 @@ interface ApiResponse {
 	filters: Record<string, any>;
 }
 
+interface CreateStaffData {
+	first_name: string;
+	last_name: string;
+	staff_code: string;
+	email: string;
+	phone: string;
+	role: string;
+}
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export function RoleDataTable<TData, TValue>({
 	columns,
 	data,
+	onRefresh,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -88,9 +101,17 @@ export function RoleDataTable<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
-	const [stats, setStats] = useState<ApiResponse | null>(null);
-
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+	// Staff form state
+	const [staffForm, setStaffForm] = useState<CreateStaffData>({
+		first_name: "",
+		last_name: "",
+		staff_code: "",
+		email: "",
+		phone: "",
+		role: "staff",
+	});
 
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
@@ -103,7 +124,83 @@ export function RoleDataTable<TData, TValue>({
 
 	const closeModal = () => {
 		setModalOpen(false);
+		// Reset form when modal closes
+		setStaffForm({
+			first_name: "",
+			last_name: "",
+			staff_code: "",
+			email: "",
+			phone: "",
+			role: "staff",
+		});
 	};
+
+	const handleAddStaff = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Validate required fields
+			if (
+				!staffForm.first_name ||
+				!staffForm.last_name ||
+				!staffForm.staff_code ||
+				!staffForm.email ||
+				!staffForm.role
+			) {
+				toast.error("Please fill in all required fields.");
+				return;
+			}
+
+			const response = await axios.post(
+				`${BASE_URL}/user/create`,
+				{
+					first_name: staffForm.first_name,
+					last_name: staffForm.last_name,
+					staff_code: staffForm.staff_code,
+					email: staffForm.email,
+					phone: staffForm.phone || null,
+					role: staffForm.role,
+				},
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "success") {
+				toast.success("Staff created successfully!");
+				closeModal();
+
+				// Call the onRefresh prop to trigger refresh in parent component
+				if (onRefresh) {
+					onRefresh();
+				}
+			}
+		} catch (error) {
+			console.error("Error creating staff:", error);
+			if (axios.isAxiosError(error)) {
+				toast.error(
+					error.response?.data?.message ||
+						"Failed to create staff. Please try again."
+				);
+			} else {
+				toast.error("An unexpected error occurred. Please try again.");
+			}
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	// Function to filter data based on date range
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
@@ -111,9 +208,9 @@ export function RoleDataTable<TData, TValue>({
 			return;
 		}
 
-		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.date);
-			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		const filteredData = data.filter((staff: any) => {
+			const dateCreated = new Date(staff.created_at);
+			return dateCreated >= dateRange.from! && dateCreated <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
@@ -128,12 +225,21 @@ export function RoleDataTable<TData, TValue>({
 
 		if (status === "View All") {
 			setTableData(data); // Reset to all data
-		} else {
+		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+				(staff) => (staff as any)?.is_active === true
 			);
-
+			setTableData(filteredData as TData[]);
+		} else if (status === "Inactive") {
+			const filteredData = data?.filter(
+				(staff) => (staff as any)?.is_active === false
+			);
+			setTableData(filteredData as TData[]);
+		} else if (status === "Suspended") {
+			// You might need to adjust this based on your actual status field
+			const filteredData = data?.filter(
+				(staff) => (staff as any)?.status?.toLowerCase() === "suspended"
+			);
 			setTableData(filteredData as TData[]);
 		}
 	};
@@ -144,7 +250,7 @@ export function RoleDataTable<TData, TValue>({
 
 		// Create a new workbook and add the worksheet
 		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Staff");
 
 		// Generate a binary string from the workbook
 		const binaryString = XLSX.write(workbook, {
@@ -161,7 +267,7 @@ export function RoleDataTable<TData, TValue>({
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = "staffs.xlsx";
+		link.download = "staff.xlsx";
 		link.click();
 
 		// Clean up
@@ -198,18 +304,15 @@ export function RoleDataTable<TData, TValue>({
 
 			console.log("Selected IDs for deletion:", selectedIds);
 
-			const response = await axios.delete(
-				"https://api.medbankr.ai/api/v1/administrator/user",
-				{
-					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
+			const response = await axios.delete(`${BASE_URL}/staff/bulk-delete`, {
+				data: { ids: selectedIds },
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (response.status === 200) {
+			if (response.data.status === "success") {
 				toast.success("Selected staff deleted successfully!");
 
 				// Update the table data by filtering out the deleted staff
@@ -267,44 +370,85 @@ export function RoleDataTable<TData, TValue>({
 								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">First Name</p>
+										<p className="text-xs text-primary-6">First Name *</p>
 										<Input
 											type="text"
 											placeholder="Enter First Name"
 											className="focus:border-none"
+											value={staffForm.first_name}
+											onChange={(e) =>
+												setStaffForm({
+													...staffForm,
+													first_name: e.target.value,
+												})
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Last Name</p>
+										<p className="text-xs text-primary-6">Last Name *</p>
 										<Input
 											type="text"
 											placeholder="Enter Last Name"
 											className="focus:border-none"
+											value={staffForm.last_name}
+											onChange={(e) =>
+												setStaffForm({
+													...staffForm,
+													last_name: e.target.value,
+												})
+											}
 										/>
 									</div>
 								</div>
 
-								{/* Email, Role & Phone Row */}
+								{/* Staff Code & Email Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Email Address</p>
+										<p className="text-xs text-primary-6">Staff Code *</p>
 										<Input
 											type="text"
-											placeholder="Enter email address"
+											placeholder="Enter Staff Code"
 											className="focus:border-none"
+											value={staffForm.staff_code}
+											onChange={(e) =>
+												setStaffForm({
+													...staffForm,
+													staff_code: e.target.value,
+												})
+											}
 										/>
 									</div>
-
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Role</p>
-										<Select>
-											<SelectTrigger className="w-full focus:border-none ">
+										<p className="text-xs text-primary-6">Email Address *</p>
+										<Input
+											type="email"
+											placeholder="Enter email address"
+											className="focus:border-none"
+											value={staffForm.email}
+											onChange={(e) =>
+												setStaffForm({ ...staffForm, email: e.target.value })
+											}
+										/>
+									</div>
+								</div>
+
+								{/* Role & Phone Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
+									<div className="w-full flex flex-col gap-2">
+										<p className="text-xs text-primary-6">Role *</p>
+										<Select
+											value={staffForm.role}
+											onValueChange={(value) =>
+												setStaffForm({ ...staffForm, role: value })
+											}>
+											<SelectTrigger className="w-full focus:border-none">
 												<SelectValue placeholder="Select role" />
 											</SelectTrigger>
 											<SelectContent className="bg-white z-10 select">
+												<SelectItem value="super_admin">Super Admin</SelectItem>
 												<SelectItem value="admin">Admin</SelectItem>
 												<SelectItem value="staff">Staff</SelectItem>
-												<SelectItem value="field-officer">
+												<SelectItem value="field_officer">
 													Field Officer
 												</SelectItem>
 											</SelectContent>
@@ -317,6 +461,10 @@ export function RoleDataTable<TData, TValue>({
 											type="text"
 											placeholder="Enter phone number"
 											className="focus:border-none"
+											value={staffForm.phone}
+											onChange={(e) =>
+												setStaffForm({ ...staffForm, phone: e.target.value })
+											}
 										/>
 									</div>
 								</div>
@@ -330,6 +478,7 @@ export function RoleDataTable<TData, TValue>({
 							</Button>
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
+								onClick={handleAddStaff}
 								disabled={isLoading}>
 								{isLoading ? "Creating User..." : "Create User"}
 							</Button>
@@ -339,22 +488,20 @@ export function RoleDataTable<TData, TValue>({
 			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Inactive", "Suspended"].map(
-						(status, index, arr) => (
-							<p
-								key={status}
-								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
-									selectedStatus === status
-										? "bg-primary-5 text-dark-1"
-										: "text-dark-1"
-								} 
+					{["View All", "Active", "Inactive"].map((status, index, arr) => (
+						<p
+							key={status}
+							className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+								selectedStatus === status
+									? "bg-primary-5 text-dark-1"
+									: "text-dark-1"
+							} 
 			${index === 0 ? "rounded-l-lg firstRound" : ""} 
 			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
-								onClick={() => handleStatusFilter(status)}>
-								{status}
-							</p>
-						)
-					)}
+							onClick={() => handleStatusFilter(status)}>
+							{status}
+						</p>
+					))}
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input

@@ -27,37 +27,47 @@ import { EndUserDataTable } from "./end-user-table";
 // This type is used to define the shape of our data.
 export type EndUser = {
 	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
+	membership_code: string;
+	first_name: string;
+	last_name: string;
+	middle_name: string | null;
+	dob: string;
+	gender: string;
 	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
+	phone: string;
+	residential_address: string;
+	residential_state: string;
+	residential_lga: string;
+	residential_city: string;
+	state_of_origin: string;
+	lga_of_origin: string;
+	nationality: string;
+	identity_type: string;
+	identity_number: string;
+	association: string | null;
+	education_level: string | null;
+	employment_status: string;
+	occupation: string;
+	pic: string | null;
+	finger_bio: string | null;
+	facial_bio: string | null;
+	finger_bio_encoding: string | null;
+	facial_bio_encoding: string | null;
+	is_active: boolean;
 	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
+	updated_at: string;
 };
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
 	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
+	pagination?: {
 		total: number;
 		page: number;
 		limit: number;
 		pages: number;
 	};
-	filters: Record<string, unknown>;
 }
 
 declare module "next-auth" {
@@ -68,12 +78,14 @@ declare module "next-auth" {
 
 interface EditData {
 	id: string;
-	full_name: string;
+	first_name: string;
+	last_name: string;
 	email: string;
 	gender: string;
-	date_of_birth: string;
+	dob: string;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const EndUserTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
@@ -82,10 +94,11 @@ const EndUserTable = () => {
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
 	const [editData, setEditData] = useState<EditData>({
 		id: "",
-		full_name: "",
+		first_name: "",
+		last_name: "",
 		email: "",
 		gender: "male",
-		date_of_birth: "",
+		dob: "",
 	});
 	const [pagination, setPagination] = useState({
 		page: 1,
@@ -98,10 +111,11 @@ const EndUserTable = () => {
 		const user = row.original;
 		setEditData({
 			id: user.id,
-			full_name: user.full_name || "",
+			first_name: user.first_name,
+			last_name: user.last_name,
 			email: user.email,
-			gender: user.gender || "male",
-			date_of_birth: user.date_of_birth ? user.date_of_birth.split("T")[0] : "",
+			gender: user.gender,
+			dob: user.dob ? user.dob.split("T")[0] : "",
 		});
 		setEditModalOpen(true);
 	};
@@ -121,13 +135,14 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.put(
-				`https://api.medbankr.ai/api/v1/administrator/user/${editData.id}`,
+			const response = await axios.post(
+				`${BASE_URL}/beneficiary/${editData.id}`,
 				{
-					full_name: editData.full_name,
+					first_name: editData.first_name,
+					last_name: editData.last_name,
 					email: editData.email,
 					gender: editData.gender,
-					date_of_birth: editData.date_of_birth,
+					dob: editData.dob,
 				},
 				{
 					headers: {
@@ -137,7 +152,7 @@ const EndUserTable = () => {
 				}
 			);
 
-			if (response.status === 200) {
+			if (response.data.status === "success") {
 				toast.success("User updated successfully.");
 				fetchUsers();
 				closeEditModal();
@@ -171,31 +186,17 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
+			const response = await axios.get<ApiResponse>(`${BASE_URL}/beneficiary`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (response.data.status === true) {
+			if (response.data.status === "success") {
 				const formattedData = response.data.data.map((user) => ({
-					id: user._id,
-					_id: user._id,
-					createdAt: user.createdAt,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
+					...user,
+					id: user.id,
 				}));
 
 				setTableData(formattedData);
@@ -228,19 +229,16 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.delete(
-				`https://api.medbankr.ai/api/v1/administrator/user`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-						"Content-Type": "application/json",
-					},
-					data: { id },
-				}
-			);
+			const response = await axios.delete(`${BASE_URL}/beneficiary`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+					"Content-Type": "application/json",
+				},
+				data: { id },
+			});
 
-			if (response.status === 200) {
+			if (response.data.status === "success") {
 				setTableData((prevData) => prevData.filter((user) => user.id !== id));
 				toast.success("User deleted successfully.");
 			}
@@ -269,6 +267,16 @@ const EndUserTable = () => {
 		}
 	};
 
+	const getFullName = (user: EndUser) => {
+		return `${user.first_name} ${
+			user.middle_name ? user.middle_name + " " : ""
+		}${user.last_name}`.trim();
+	};
+
+	const getStatus = (user: EndUser) => {
+		return user.is_active ? "active" : "inactive";
+	};
+
 	const columns: ColumnDef<EndUser>[] = [
 		{
 			id: "select",
@@ -293,29 +301,32 @@ const EndUserTable = () => {
 			),
 		},
 		{
-			accessorKey: "public_id",
+			accessorKey: "membership_code",
 			header: "User ID",
 			cell: ({ row }) => {
-				const publicId = row.getValue<string>("public_id") || "N/A";
-				return <span className="text-xs text-primary-6">{publicId}</span>;
+				const membershipCode = row.getValue<string>("membership_code") || "N/A";
+				return <span className="text-xs text-primary-6">{membershipCode}</span>;
 			},
 		},
 		{
-			accessorKey: "full_name",
+			accessorKey: "first_name",
 			header: "Full Name",
 			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-				const pic = row.original.pic;
+				const user = row.original;
+				const fullName = getFullName(user);
+				const pic = user.pic;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<Image
 							src={pic || "/images/avatar.png"}
-							alt={name}
+							alt={fullName}
 							width={30}
 							height={30}
 							className="w-8 h-8 rounded-full object-cover"
 						/>
-						<span className="text-xs text-primary-6 capitalize">{name}</span>
+						<span className="text-xs text-primary-6 capitalize">
+							{fullName}
+						</span>
 					</div>
 				);
 			},
@@ -328,9 +339,8 @@ const EndUserTable = () => {
 				return <span className="text-xs text-primary-6">{email}</span>;
 			},
 		},
-
 		{
-			accessorKey: "status",
+			accessorKey: "is_active",
 			header: ({ column }) => {
 				return (
 					<Button
@@ -345,7 +355,8 @@ const EndUserTable = () => {
 				);
 			},
 			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
+				const user = row.original;
+				const status = getStatus(user);
 				return (
 					<div className={`status ${status === "active" ? "green" : "red"}`}>
 						{status}
@@ -375,9 +386,11 @@ const EndUserTable = () => {
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 
-						<Link href={`/beneficiary-management/${user.id}/edit`}>
-							<Button className="border border-[#E8E8E8]">Edit</Button>
-						</Link>
+						<Button
+							className="border border-[#E8E8E8]"
+							onClick={() => openEditModal(row)}>
+							Edit
+						</Button>
 
 						<Button
 							className="border border-[#E8E8E8]"
@@ -420,14 +433,24 @@ const EndUserTable = () => {
 					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form modal-small">
 						<div className="mt-3 pt-2">
 							<div className="flex flex-col gap-2">
-								<p className="text-xs text-primary-6">Full Name</p>
+								<p className="text-xs text-primary-6">First Name</p>
 								<Input
 									type="text"
-									placeholder="Enter Full Name"
+									placeholder="Enter First Name"
 									className="focus:border-none mt-2"
-									value={editData.full_name}
+									value={editData.first_name}
 									onChange={(e) =>
-										setEditData({ ...editData, full_name: e.target.value })
+										setEditData({ ...editData, first_name: e.target.value })
+									}
+								/>
+								<p className="text-xs text-primary-6 mt-2">Last Name</p>
+								<Input
+									type="text"
+									placeholder="Enter Last Name"
+									className="focus:border-none mt-2"
+									value={editData.last_name}
+									onChange={(e) =>
+										setEditData({ ...editData, last_name: e.target.value })
 									}
 								/>
 								<p className="text-xs text-primary-6 mt-2">Email Address</p>
@@ -445,9 +468,9 @@ const EndUserTable = () => {
 									type="date"
 									placeholder="Enter Date of Birth"
 									className="focus:border-none mt-2"
-									value={editData.date_of_birth}
+									value={editData.dob}
 									onChange={(e) =>
-										setEditData({ ...editData, date_of_birth: e.target.value })
+										setEditData({ ...editData, dob: e.target.value })
 									}
 								/>
 								<p className="text-xs text-primary-6 mt-2">Gender</p>
@@ -489,7 +512,7 @@ const EndUserTable = () => {
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
 					<p>
 						Are you sure you want to delete{" "}
-						{selectedRow?.full_name || selectedRow?.email}'s account?
+						{selectedRow ? getFullName(selectedRow) : "this user"}'s account?
 					</p>
 					<p className="text-sm text-primary-6">This can't be undone</p>
 					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">

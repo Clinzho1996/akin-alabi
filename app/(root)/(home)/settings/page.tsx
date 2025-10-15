@@ -61,30 +61,21 @@ function Settings() {
 							{session?.user && (
 								<div className="md:flex flex-col p-2 rounded-md justify-start gap-2 items-start mx-2 px-2 w-full">
 									<div className="flex justify-start border-[1px] border-dark-3 rounded-full overflow-hidden">
-										{session.user.image ? (
-											<Image
-												src={session.user.image}
-												alt="profile"
-												className="object-cover w-full h-full lg:w-[74px] lg:h-[74px] rounded-full"
-												width={50}
-												height={50}
-											/>
-										) : (
-											<div className="flex items-center justify-center w-[50px] h-[50px]">
-												<h2 className="text-secondary-1 font-bold text-lg">
-													{getNameInitials({
-														name: session?.user?.name || "AA",
-													})}
-												</h2>
-											</div>
-										)}
+										<div className="flex items-center justify-center w-[50px] h-[50px]">
+											<h2 className="text-secondary-1 font-bold text-lg">
+												{getNameInitials({
+													name: session?.user?.firstName || "AA",
+												})}
+											</h2>
+										</div>
 									</div>
 									<div className="flex flex-col justify-start items-start gap-3 w-full">
 										<p className="text-dark-2 font-normal font-inter text-sm">
 											Full Name
 										</p>
 										<h3 className="text-dark-1 text-sm font-normal font-inter border-[1px]  border-[#9F9E9E40] p-2 rounded-lg w-full">
-											{session.user.name || "Akin Alabi Admin"}
+											{session.user.firstName || "Akin Alabi Admin"}{" "}
+											{session.user.lastName || "Admin"}
 										</h3>
 									</div>
 								</div>
@@ -118,7 +109,7 @@ function Settings() {
 											Phone Number
 										</p>
 										<h3 className="text-dark-1 text-sm font-normal font-inter border-[1px]  border-[#9F9E9E40] p-2 rounded-lg w-full">
-											+234810 0000 000
+											{session.user.phone || "08012345678"}
 										</h3>
 									</div>
 								</div>

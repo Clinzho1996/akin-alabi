@@ -11,46 +11,48 @@ import { Input } from "@/components/ui/input";
 import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { EventDataTable } from "./event-table";
 
 // This type is used to define the shape of our data.
-export type EndUser = {
+export type Event = {
 	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
-	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
+	name: string;
+	start_date: string;
+	start_time: string;
+	end_date: string;
+	end_time: string;
+	location: string;
+	is_active: boolean;
 	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
+	updated_at: string;
+	benefits: {
+		id: string;
+		name: string;
+		type: string;
+		is_active: boolean;
+		created_at: string;
+		updated_at: string;
+		pivot: {
+			event_id: string;
+			benefit_id: string;
+		};
+	}[];
 };
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
+	data: Event[];
 	pagination: {
+		current_page: number;
+		next_page_url: string | null;
+		prev_page_url: string | null;
 		total: number;
-		page: number;
-		limit: number;
-		pages: number;
+		per_page: number;
 	};
-	filters: Record<string, unknown>;
 }
 
 declare module "next-auth" {
@@ -61,25 +63,36 @@ declare module "next-auth" {
 
 interface EditData {
 	id: string;
-	full_name: string;
-	email: string;
-	gender: string;
-	date_of_birth: string;
+	name: string;
+	location: string;
+	start_date: string;
+	end_date: string;
+	start_time: string;
+	end_time: string;
+	benefit_ids: string[]; // Changed from benefits to benefit_ids
 }
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const EventTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
+	const [selectedRow, setSelectedRow] = useState<Event | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [tableData, setTableData] = useState<EndUser[]>([]);
+	const [tableData, setTableData] = useState<Event[]>([]);
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
+	const [isCloseEventModalOpen, setCloseEventModalOpen] = useState(false);
 	const [editData, setEditData] = useState<EditData>({
 		id: "",
-		full_name: "",
-		email: "",
-		gender: "male",
-		date_of_birth: "",
+		name: "",
+		location: "",
+		start_date: "",
+		end_date: "",
+		start_time: "",
+		end_time: "",
+		benefit_ids: [], // Changed from benefits to benefit_ids
 	});
+	const [newBenefit, setNewBenefit] = useState("");
+	const [availableBenefits, setAvailableBenefits] = useState<any[]>([]); // Store available benefits
 	const [pagination, setPagination] = useState({
 		page: 1,
 		limit: 50,
@@ -87,14 +100,40 @@ const EventTable = () => {
 		pages: 1,
 	});
 
-	const openEditModal = (row: Row<EndUser>) => {
-		const user = row.original;
+	// Fetch available benefits for selection
+	const fetchAvailableBenefits = async () => {
+		try {
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) return;
+
+			const response = await axios.get(`${BASE_URL}/benefit`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
+
+			if (response.data.status === "success") {
+				setAvailableBenefits(response.data.data);
+			}
+		} catch (error) {
+			console.error("Error fetching benefits:", error);
+		}
+	};
+
+	const openEditModal = (row: Row<Event>) => {
+		const event = row.original;
 		setEditData({
-			id: user.id,
-			full_name: user.full_name || "",
-			email: user.email,
-			gender: user.gender || "male",
-			date_of_birth: user.date_of_birth ? user.date_of_birth.split("T")[0] : "",
+			id: event.id,
+			name: event.name,
+			location: event.location,
+			start_date: event.start_date,
+			end_date: event.end_date,
+			start_time: event.start_time.slice(0, 5),
+			end_time: event.end_time.slice(0, 5),
+			benefit_ids: event.benefits.map((benefit) => benefit.id), // Store benefit IDs instead of names
 		});
 		setEditModalOpen(true);
 	};
@@ -103,7 +142,16 @@ const EventTable = () => {
 		setEditModalOpen(false);
 	};
 
-	const handleEditUser = async () => {
+	const openCloseEventModal = (row: Row<Event>) => {
+		setSelectedRow(row.original);
+		setCloseEventModalOpen(true);
+	};
+
+	const closeCloseEventModal = () => {
+		setCloseEventModalOpen(false);
+	};
+
+	const handleEditEvent = async () => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -114,13 +162,16 @@ const EventTable = () => {
 				return;
 			}
 
-			const response = await axios.put(
-				`https://api.medbankr.ai/api/v1/administrator/user/${editData.id}`,
+			const response = await axios.post(
+				`${BASE_URL}/event/${editData.id}`,
 				{
-					full_name: editData.full_name,
-					email: editData.email,
-					gender: editData.gender,
-					date_of_birth: editData.date_of_birth,
+					name: editData.name,
+					location: editData.location,
+					start_date: editData.start_date,
+					end_date: editData.end_date,
+					start_time: editData.start_time,
+					end_time: editData.end_time,
+					benefit_ids: editData.benefit_ids, // Send benefit IDs array
 				},
 				{
 					headers: {
@@ -130,20 +181,55 @@ const EventTable = () => {
 				}
 			);
 
-			if (response.status === 200) {
-				toast.success("User updated successfully.");
-				fetchUsers();
+			if (response.data.status === "success") {
+				toast.success("Event updated successfully.");
+				fetchEvents();
 				closeEditModal();
 			}
 		} catch (error) {
-			console.error("Error updating user:", error);
-			toast.error("Failed to update user. Please try again.");
+			console.error("Error updating event:", error);
+			toast.error("Failed to update event. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const openDeleteModal = (row: Row<EndUser>) => {
+	const handleCloseEvent = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken || !selectedRow) {
+				console.error("No access token or event selected.");
+				return;
+			}
+
+			const response = await axios.patch(
+				`${BASE_URL}/event/close/${selectedRow.id}`,
+				{},
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "success") {
+				toast.success("Event closed successfully.");
+				fetchEvents();
+				closeCloseEventModal();
+			}
+		} catch (error) {
+			console.error("Error closing event:", error);
+			toast.error("Failed to close event. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const openDeleteModal = (row: Row<Event>) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
@@ -152,7 +238,7 @@ const EventTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchUsers = async (page = 1, limit = 50) => {
+	const fetchEvents = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -165,7 +251,7 @@ const EventTable = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
+				`${BASE_URL}/event?page=${page}&limit=${limit}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -174,44 +260,36 @@ const EventTable = () => {
 				}
 			);
 
-			if (response.data.status === true) {
-				const formattedData = response.data.data.map((user) => ({
-					id: user._id,
-					_id: user._id,
-					createdAt: user.createdAt,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
-				}));
-
-				setTableData(formattedData);
+			if (response.data.status === "success") {
+				setTableData(response.data.data);
 
 				if (response.data.pagination) {
-					setPagination(response.data.pagination);
+					const paginationData = response.data.pagination;
+					setPagination({
+						page: paginationData.current_page,
+						limit: paginationData.per_page,
+						total: paginationData.total,
+						pages: Math.ceil(paginationData.total / paginationData.per_page),
+					});
 				}
 
-				console.log("Users Data:", formattedData);
+				console.log("Events Data:", response.data.data);
 				console.log("Pagination:", response.data.pagination);
 			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching events data:", error);
+			toast.error("Failed to fetch events.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50);
+		fetchEvents(1, 50);
+		fetchAvailableBenefits(); // Fetch available benefits when component mounts
 	}, []);
 
-	const deleteUser = async (id: string) => {
+	const deleteEvent = async (id: string) => {
 		try {
 			const session = await getSession();
 			const accessToken = session?.accessToken;
@@ -221,25 +299,20 @@ const EventTable = () => {
 				return;
 			}
 
-			const response = await axios.delete(
-				`https://api.medbankr.ai/api/v1/administrator/user`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-						"Content-Type": "application/json",
-					},
-					data: { id },
-				}
-			);
+			const response = await axios.delete(`${BASE_URL}/event/${id}`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (response.status === 200) {
-				setTableData((prevData) => prevData.filter((user) => user.id !== id));
-				toast.success("User deleted successfully.");
+			if (response.data.status === "success") {
+				setTableData((prevData) => prevData.filter((event) => event.id !== id));
+				toast.success("Event deleted successfully.");
 			}
 		} catch (error) {
-			console.error("Error deleting user:", error);
-			toast.error("Failed to delete user. Please try again.");
+			console.error("Error deleting event:", error);
+			toast.error("Failed to delete event. Please try again.");
 		}
 	};
 
@@ -248,7 +321,7 @@ const EventTable = () => {
 
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
-			month: "long",
+			month: "short",
 			day: "numeric",
 		};
 		const parsedDate =
@@ -256,13 +329,61 @@ const EventTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const loadMoreUsers = () => {
-		if (pagination.page < pagination.pages) {
-			fetchUsers(pagination.page + 1, pagination.limit);
+	const formatTime = (timeString: string) => {
+		if (!timeString) return "N/A";
+		return timeString.slice(0, 5);
+	};
+
+	const getTotalBeneficiaries = (event: Event) => {
+		return Math.floor(Math.random() * 100) + 1;
+	};
+
+	const getTotalAmount = (event: Event) => {
+		const monetaryBenefits = event.benefits.filter(
+			(benefit) => benefit.type === "monetary"
+		);
+		let total = 0;
+
+		monetaryBenefits.forEach((benefit) => {
+			const amountMatch = benefit.name.match(/\d+/);
+			if (amountMatch) {
+				total += parseInt(amountMatch[0]);
+			}
+		});
+
+		return total > 0 ? `NGN ${total.toLocaleString()}` : "No monetary benefits";
+	};
+
+	const addBenefit = (benefitId: string) => {
+		if (!editData.benefit_ids.includes(benefitId)) {
+			setEditData({
+				...editData,
+				benefit_ids: [...editData.benefit_ids, benefitId],
+			});
 		}
 	};
 
-	const columns: ColumnDef<EndUser>[] = [
+	const removeBenefit = (benefitIdToRemove: string) => {
+		setEditData({
+			...editData,
+			benefit_ids: editData.benefit_ids.filter(
+				(benefitId) => benefitId !== benefitIdToRemove
+			),
+		});
+	};
+
+	const getBenefitName = (benefitId: string) => {
+		const benefit = availableBenefits.find((b) => b.id === benefitId);
+		return benefit ? benefit.name : "Unknown Benefit";
+	};
+
+	const loadMoreEvents = () => {
+		if (pagination.page < pagination.pages) {
+			fetchEvents(pagination.page + 1, pagination.limit);
+		}
+	};
+
+	const columns: ColumnDef<Event>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -286,19 +407,22 @@ const EventTable = () => {
 			),
 		},
 		{
-			accessorKey: "public_id",
-			header: "User ID",
+			accessorKey: "id",
+			header: "Event ID",
 			cell: ({ row }) => {
-				const publicId = row.getValue<string>("public_id") || "N/A";
-				return <span className="text-xs text-primary-6">{publicId}</span>;
+				const eventId = row.original.id;
+				return (
+					<span className="text-xs text-primary-6">
+						{eventId.slice(0, 8)}...
+					</span>
+				);
 			},
 		},
 		{
-			accessorKey: "full_name",
+			accessorKey: "name",
 			header: "Event Name",
 			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-
+				const name = row.original.name;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<span className="text-xs text-primary-6 capitalize">{name}</span>
@@ -307,47 +431,40 @@ const EventTable = () => {
 			},
 		},
 		{
-			accessorKey: "full_name",
+			id: "beneficiaries",
 			header: "Beneficiaries",
 			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-				const pic = row.original.pic;
+				const beneficiariesCount = getTotalBeneficiaries(row.original);
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
-						<Image
-							src={pic || "/images/avatar.png"}
-							alt={name}
-							width={30}
-							height={30}
-							className="w-8 h-8 rounded-full object-cover"
-						/>
-						<span className="text-xs text-primary-6 capitalize">{name}</span>
+						<span className="text-xs text-primary-6">{beneficiariesCount}</span>
 					</div>
 				);
 			},
 		},
 		{
-			accessorKey: "email",
+			id: "amount",
 			header: "Amount / Package",
 			cell: ({ row }) => {
-				const email = row.getValue<string>("type") || "NGN 50,000";
-				return <span className="text-xs text-primary-6">{email}</span>;
+				const amount = getTotalAmount(row.original);
+				return <span className="text-xs text-primary-6">{amount}</span>;
 			},
 		},
-
 		{
-			accessorKey: "created_at",
+			accessorKey: "start_date",
 			header: "Date",
 			cell: ({ row }) => {
-				const date = row.getValue<string>("created_at");
+				const startDate = row.original.start_date;
+				const endDate = row.original.end_date;
 				return (
-					<span className="text-xs text-primary-6">{formatDate(date)}</span>
+					<span className="text-xs text-primary-6">
+						{formatDate(startDate)} - {formatDate(endDate)}
+					</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "status",
+			accessorKey: "is_active",
 			header: ({ column }) => {
 				return (
 					<Button
@@ -362,25 +479,24 @@ const EventTable = () => {
 				);
 			},
 			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
+				const isActive = row.original.is_active;
 				return (
-					<div className={`status ${status === "active" ? "green" : "red"}`}>
-						{status}
+					<div className={`status ${isActive ? "green" : "red"}`}>
+						{isActive ? "Active" : "Closed"}
 					</div>
 				);
 			},
 		},
-
 		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
-				const user = row.original;
+				const event = row.original;
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/event-management/${user.id}`}>
-							<Button className="border border-[#E8E8E8]">View</Button>
+						<Link href={`/event-management/${event.id}`}>
+							<Button className="border border-[#E8E8E8]">View</Button>{" "}
 						</Link>
 
 						<Button
@@ -388,6 +504,14 @@ const EventTable = () => {
 							onClick={() => openEditModal(row)}>
 							Edit
 						</Button>
+
+						{event.is_active && (
+							<Button
+								className="border border-[#E8E8E8] bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+								onClick={() => openCloseEventModal(row)}>
+								Close
+							</Button>
+						)}
 
 						<Button
 							className="border border-[#E8E8E8]"
@@ -406,11 +530,20 @@ const EventTable = () => {
 				<Loader />
 			) : (
 				<>
-					<EventDataTable columns={columns} data={tableData} />
+					<EventDataTable
+						columns={columns}
+						data={tableData}
+						onRefresh={fetchEvents}
+					/>
+					{tableData.length === 0 && !isLoading && (
+						<div className="text-center p-8 text-gray-500">
+							No events found.
+						</div>
+					)}
 					{pagination.page < pagination.pages && (
 						<div className="mt-4 flex justify-center">
 							<Button
-								onClick={loadMoreUsers}
+								onClick={loadMoreEvents}
 								className="bg-primary-1 text-white"
 								disabled={isLoading}>
 								{isLoading
@@ -422,6 +555,7 @@ const EventTable = () => {
 				</>
 			)}
 
+			{/* Edit Event Modal */}
 			{isEditModalOpen && (
 				<Modal
 					isOpen={isEditModalOpen}
@@ -430,17 +564,16 @@ const EventTable = () => {
 					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">Event Name</p>
 										<Input
 											type="text"
-											placeholder="Enter First Name"
+											placeholder="Enter Event Name"
 											className="focus:border-none"
-											value={editData.full_name}
+											value={editData.name}
 											onChange={(e) =>
-												setEditData({ ...editData, full_name: e.target.value })
+												setEditData({ ...editData, name: e.target.value })
 											}
 										/>
 									</div>
@@ -450,6 +583,10 @@ const EventTable = () => {
 											type="text"
 											placeholder="Enter Location"
 											className="focus:border-none"
+											value={editData.location}
+											onChange={(e) =>
+												setEditData({ ...editData, location: e.target.value })
+											}
 										/>
 									</div>
 								</div>
@@ -458,16 +595,22 @@ const EventTable = () => {
 										<p className="text-xs text-primary-6">Start Date</p>
 										<Input
 											type="date"
-											placeholder="Enter First Name"
 											className="focus:border-none"
+											value={editData.start_date}
+											onChange={(e) =>
+												setEditData({ ...editData, start_date: e.target.value })
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">End Date</p>
 										<Input
 											type="date"
-											placeholder="Enter Last Name"
 											className="focus:border-none"
+											value={editData.end_date}
+											onChange={(e) =>
+												setEditData({ ...editData, end_date: e.target.value })
+											}
 										/>
 									</div>
 								</div>
@@ -477,16 +620,22 @@ const EventTable = () => {
 										<p className="text-xs text-primary-6">Start Time</p>
 										<Input
 											type="time"
-											placeholder="Enter First Name"
 											className="focus:border-none"
+											value={editData.start_time}
+											onChange={(e) =>
+												setEditData({ ...editData, start_time: e.target.value })
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">End Time</p>
 										<Input
 											type="time"
-											placeholder="Enter Last Name"
 											className="focus:border-none"
+											value={editData.end_time}
+											onChange={(e) =>
+												setEditData({ ...editData, end_time: e.target.value })
+											}
 										/>
 									</div>
 								</div>
@@ -494,17 +643,46 @@ const EventTable = () => {
 						</div>
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">
 											Benefits (optional)
 										</p>
-										<Input
-											type="text"
-											placeholder="Type benefit name and press Enter to add them"
-											className="focus:border-none"
-										/>
+										<div className="flex gap-2">
+											<select
+												className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+												value={newBenefit}
+												onChange={(e) => {
+													if (e.target.value) {
+														addBenefit(e.target.value);
+														setNewBenefit("");
+													}
+												}}>
+												<option value="">Select a benefit</option>
+												{availableBenefits.map((benefit) => (
+													<option key={benefit.id} value={benefit.id}>
+														{benefit.name} ({benefit.type})
+													</option>
+												))}
+											</select>
+										</div>
+										<div className="flex flex-wrap gap-2 mt-2">
+											{editData.benefit_ids.map((benefitId, index) => (
+												<div
+													key={index}
+													className="bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+													<span className="text-xs">
+														{getBenefitName(benefitId)}
+													</span>
+													<button
+														type="button"
+														onClick={() => removeBenefit(benefitId)}
+														className="text-red-500 hover:text-red-700">
+														×
+													</button>
+												</div>
+											))}
+										</div>
 									</div>
 								</div>
 							</div>
@@ -517,7 +695,7 @@ const EventTable = () => {
 							</Button>
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
-								onClick={handleEditUser}
+								onClick={handleEditEvent}
 								disabled={isLoading}>
 								{isLoading ? "Updating Event..." : "Update Event"}
 							</Button>
@@ -526,13 +704,39 @@ const EventTable = () => {
 				</Modal>
 			)}
 
+			{/* Close Event Modal */}
+			{isCloseEventModalOpen && (
+				<Modal onClose={closeCloseEventModal} isOpen={isCloseEventModalOpen}>
+					<p>Are you sure you want to close the event "{selectedRow?.name}"?</p>
+					<p className="text-sm text-primary-6">
+						This will mark the event as completed and prevent further
+						attendance.
+					</p>
+					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+						<Button
+							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
+							onClick={closeCloseEventModal}>
+							Cancel
+						</Button>
+						<Button
+							className="bg-yellow-700 text-white font-inter text-xs"
+							onClick={handleCloseEvent}
+							disabled={isLoading}>
+							{isLoading ? "Closing Event..." : "Yes, Close Event"}
+						</Button>
+					</div>
+				</Modal>
+			)}
+
+			{/* Delete Event Modal */}
 			{isDeleteModalOpen && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
 					<p>
-						Are you sure you want to delete{" "}
-						{selectedRow?.full_name || selectedRow?.email}'s event?
+						Are you sure you want to delete the event "{selectedRow?.name}"?
 					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
+					<p className="text-sm text-primary-6">
+						This action cannot be undone and will remove all event data.
+					</p>
 					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
@@ -543,11 +747,11 @@ const EventTable = () => {
 							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
 							onClick={async () => {
 								if (selectedRow) {
-									await deleteUser(selectedRow.id);
+									await deleteEvent(selectedRow.id);
 									closeDeleteModal();
 								}
 							}}>
-							Yes, Confirm
+							Yes, Delete Event
 						</Button>
 					</div>
 				</Modal>

@@ -35,19 +35,23 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { IconPlus } from "@tabler/icons-react";
+import axios from "axios";
 import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
 } from "lucide-react";
+import { getSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
+import { toast } from "react-toastify";
 import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+	onRefresh?: () => void; // Add callback prop for refreshing data
 }
 
 interface ApiResponse {
@@ -68,9 +72,17 @@ interface ApiResponse {
 	filters: Record<string, any>;
 }
 
+interface CreateBenefitData {
+	name: string;
+	type: string;
+}
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export function BenefitDataTable<TData, TValue>({
 	columns,
 	data,
+	onRefresh,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -84,8 +96,13 @@ export function BenefitDataTable<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
-
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+	// Benefit form state
+	const [benefitForm, setBenefitForm] = useState<CreateBenefitData>({
+		name: "",
+		type: "material",
+	});
 
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
@@ -98,7 +115,69 @@ export function BenefitDataTable<TData, TValue>({
 
 	const closeModal = () => {
 		setModalOpen(false);
+		// Reset form when modal closes
+		setBenefitForm({
+			name: "",
+			type: "material",
+		});
 	};
+
+	const handleAddBenefit = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Validate required fields
+			if (!benefitForm.name || !benefitForm.type) {
+				toast.error("Please fill in all required fields.");
+				return;
+			}
+
+			const response = await axios.post(
+				`${BASE_URL}/benefit`,
+				{
+					name: benefitForm.name,
+					type: benefitForm.type,
+				},
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "success") {
+				toast.success("Benefit created successfully!");
+				closeModal();
+
+				// Call the onRefresh prop to trigger refresh in parent component
+				if (onRefresh) {
+					onRefresh();
+				}
+			}
+		} catch (error) {
+			console.error("Error creating benefit:", error);
+			if (axios.isAxiosError(error)) {
+				toast.error(
+					error.response?.data?.message ||
+						"Failed to create benefit. Please try again."
+				);
+			} else {
+				toast.error("An unexpected error occurred. Please try again.");
+			}
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	// Function to filter data based on date range
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
@@ -106,9 +185,9 @@ export function BenefitDataTable<TData, TValue>({
 			return;
 		}
 
-		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.date);
-			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		const filteredData = data.filter((benefit: any) => {
+			const dateCreated = new Date(benefit.created_at);
+			return dateCreated >= dateRange.from! && dateCreated <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
@@ -123,12 +202,21 @@ export function BenefitDataTable<TData, TValue>({
 
 		if (status === "View All") {
 			setTableData(data); // Reset to all data
-		} else {
+		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+				(benefit) => (benefit as any)?.is_active === true
 			);
-
+			setTableData(filteredData as TData[]);
+		} else if (status === "Inactive") {
+			const filteredData = data?.filter(
+				(benefit) => (benefit as any)?.is_active === false
+			);
+			setTableData(filteredData as TData[]);
+		} else if (status === "Suspended") {
+			// You might need to adjust this based on your actual status field
+			const filteredData = data?.filter(
+				(benefit) => (benefit as any)?.status?.toLowerCase() === "suspended"
+			);
 			setTableData(filteredData as TData[]);
 		}
 	};
@@ -165,23 +253,32 @@ export function BenefitDataTable<TData, TValue>({
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col sm:flex-row gap-2 w-full bg-white shadow-lg p-3 rounded-lg">
 								<div className="w-full">
-									<p className="text-xs text-primary-6">Benefit Name</p>
+									<p className="text-xs text-primary-6">Benefit Name *</p>
 									<Input
 										type="text"
-										placeholder="Enter Full Name"
+										placeholder="Enter Benefit Name"
 										className="focus:border-none mt-2"
+										value={benefitForm.name}
+										onChange={(e) =>
+											setBenefitForm({ ...benefitForm, name: e.target.value })
+										}
 									/>
 								</div>
 
 								<div className="w-full">
-									<p className="text-xs text-primary-6 mt-2">Benefit Type</p>
-									<Select>
+									<p className="text-xs text-primary-6 mt-2">Benefit Type *</p>
+									<Select
+										value={benefitForm.type}
+										onValueChange={(value) =>
+											setBenefitForm({ ...benefitForm, type: value })
+										}>
 										<SelectTrigger className="w-full option select">
-											<SelectValue placeholder="Select benefit" />
+											<SelectValue placeholder="Select benefit type" />
 										</SelectTrigger>
 										<SelectContent className="bg-white z-10 select text-gray-300">
-											<SelectItem value="male">Monetary</SelectItem>
-											<SelectItem value="female">Material</SelectItem>
+											<SelectItem value="monetary">Monetary</SelectItem>
+											<SelectItem value="material">Material</SelectItem>
+											<SelectItem value="service">Service</SelectItem>
 										</SelectContent>
 									</Select>
 								</div>
@@ -195,6 +292,7 @@ export function BenefitDataTable<TData, TValue>({
 							</Button>
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs"
+								onClick={handleAddBenefit}
 								disabled={isLoading}>
 								{isLoading ? "Creating Benefit..." : "Create Benefit"}
 							</Button>
@@ -204,22 +302,20 @@ export function BenefitDataTable<TData, TValue>({
 			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Inactive", "Suspended"].map(
-						(status, index, arr) => (
-							<p
-								key={status}
-								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
-									selectedStatus === status
-										? "bg-primary-5 text-dark-1"
-										: "text-dark-1"
-								} 
+					{["View All", "Active", "Inactive"].map((status, index, arr) => (
+						<p
+							key={status}
+							className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+								selectedStatus === status
+									? "bg-primary-5 text-dark-1"
+									: "text-dark-1"
+							} 
 			${index === 0 ? "rounded-l-lg firstRound" : ""} 
 			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
-								onClick={() => handleStatusFilter(status)}>
-								{status}
-							</p>
-						)
-					)}
+							onClick={() => handleStatusFilter(status)}>
+							{status}
+						</p>
+					))}
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input

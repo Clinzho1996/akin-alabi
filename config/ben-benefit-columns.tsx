@@ -3,48 +3,23 @@
 import { ColumnDef } from "@tanstack/react-table";
 
 import Loader from "@/components/Loader";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { getSession } from "next-auth/react";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BenefitDataTable } from "./ben-benefit-table";
 
 // This type is used to define the shape of our data.
-export type EndUser = {
-	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
-	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
-	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
-	type?: string;
+export type Benefit = {
+	benefit_name: string;
+	event_name: string;
 };
 
 interface ApiResponse {
-	status: boolean;
+	status: string;
 	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, unknown>;
+	data: Benefit[];
 }
 
 declare module "next-auth" {
@@ -53,26 +28,15 @@ declare module "next-auth" {
 	}
 }
 
-interface EditData {
-	id: string;
-	full_name: string;
-	email: string;
-	gender: string;
-	date_of_birth: string;
-}
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const BenefitTable = () => {
+	const params = useParams();
+	const beneficiaryId = params.id as string;
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [tableData, setTableData] = useState<EndUser[]>([]);
+	const [tableData, setTableData] = useState<Benefit[]>([]);
 
-	const [pagination, setPagination] = useState({
-		page: 1,
-		limit: 50,
-		total: 0,
-		pages: 1,
-	});
-
-	const fetchUsers = async (page = 1, limit = 50) => {
+	const fetchBenefits = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -85,7 +49,7 @@ const BenefitTable = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
+				`${BASE_URL}/beneficiary/benefit/history/${beneficiaryId}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -94,42 +58,23 @@ const BenefitTable = () => {
 				}
 			);
 
-			if (response.data.status === true) {
-				const formattedData = response.data.data.map((user) => ({
-					id: user._id,
-					_id: user._id,
-					createdAt: user.createdAt,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
-					type: user.type,
-				}));
+			if (response.data.status === "success") {
+				setTableData(response.data.data);
 
-				setTableData(formattedData);
+				// If your API returns pagination data, update it here
+				// setPagination(response.data.pagination);
 
-				if (response.data.pagination) {
-					setPagination(response.data.pagination);
-				}
-
-				console.log("Users Data:", formattedData);
-				console.log("Pagination:", response.data.pagination);
+				console.log("Benefits Data:", response.data.data);
 			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching benefits data:", error);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50);
+		fetchBenefits(1, 50);
 	}, []);
 
 	const formatDate = (rawDate: string | Date | null) => {
@@ -145,13 +90,26 @@ const BenefitTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const loadMoreUsers = () => {
-		if (pagination.page < pagination.pages) {
-			fetchUsers(pagination.page + 1, pagination.limit);
+	const getBenefitType = (benefitName: string) => {
+		// You can customize this logic based on your benefit types
+		const monetaryBenefits = ["cash", "money", "grant", "stipend"];
+		const materialBenefits = ["phone", "food", "clothing", "equipment"];
+		const serviceBenefits = ["training", "counseling", "medical", "education"];
+
+		const lowerName = benefitName.toLowerCase();
+
+		if (monetaryBenefits.some((term) => lowerName.includes(term))) {
+			return "Monetary";
+		} else if (materialBenefits.some((term) => lowerName.includes(term))) {
+			return "Material";
+		} else if (serviceBenefits.some((term) => lowerName.includes(term))) {
+			return "Service";
+		} else {
+			return "Other";
 		}
 	};
 
-	const columns: ColumnDef<EndUser>[] = [
+	const columns: ColumnDef<Benefit>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -174,39 +132,55 @@ const BenefitTable = () => {
 				/>
 			),
 		},
-
 		{
-			accessorKey: "full_name",
+			accessorKey: "benefit_name",
 			header: "Name of Benefit",
 			cell: ({ row }) => {
-				const name = row.getValue<string | null>("full_name") || "N/A";
-
+				const benefitName = row.getValue<string>("benefit_name") || "N/A";
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
-						<span className="text-xs text-primary-6 capitalize">{name}</span>
+						<span className="text-xs text-primary-6 capitalize">
+							{benefitName}
+						</span>
 					</div>
 				);
 			},
 		},
-
 		{
-			accessorKey: "type",
-			header: "Benefit Type",
+			accessorKey: "event_name",
+			header: "Event Name",
 			cell: ({ row }) => {
-				const type = row.getValue<string>("type") || "Monetary";
+				const eventName = row.getValue<string>("event_name") || "N/A";
 				return (
-					<span className="text-xs text-primary-6 capitalize">{type}</span>
+					<span className="text-xs text-primary-6 capitalize">{eventName}</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "created_at",
-			header: "Date",
+			accessorKey: "benefit_name",
+			header: "Benefit Type",
 			cell: ({ row }) => {
-				const date = row.getValue<string>("created_at");
+				const benefitName = row.getValue<string>("benefit_name");
+				const benefitType = getBenefitType(benefitName);
 				return (
-					<span className="text-xs text-primary-6">{formatDate(date)}</span>
+					<span className="text-xs text-primary-6 capitalize">
+						{benefitType}
+					</span>
+				);
+			},
+		},
+		{
+			id: "date",
+			header: "Date",
+			cell: () => {
+				// Since the API response doesn't include dates, you might want to:
+				// 1. Use current date as placeholder
+				// 2. Fetch additional data if available
+				// 3. Remove this column if not needed
+				return (
+					<span className="text-xs text-primary-6">
+						{formatDate(new Date())}
+					</span>
 				);
 			},
 		},
@@ -219,16 +193,9 @@ const BenefitTable = () => {
 			) : (
 				<>
 					<BenefitDataTable columns={columns} data={tableData} />
-					{pagination.page < pagination.pages && (
-						<div className="mt-4 flex justify-center">
-							<Button
-								onClick={loadMoreUsers}
-								className="bg-primary-1 text-white"
-								disabled={isLoading}>
-								{isLoading
-									? "Loading..."
-									: `Load More (${tableData.length} of ${pagination.total})`}
-							</Button>
+					{tableData.length === 0 && !isLoading && (
+						<div className="text-center p-8 text-gray-500">
+							No benefits found.
 						</div>
 					)}
 				</>

@@ -52,6 +52,7 @@ import { EndUser } from "./end-user-columns";
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+	onRefresh?: () => void; // Add callback prop for refreshing data
 }
 
 interface ApiResponse {
@@ -72,9 +73,22 @@ interface ApiResponse {
 	filters: Record<string, any>;
 }
 
+interface CreateEventData {
+	name: string;
+	location: string;
+	start_date: string;
+	end_date: string;
+	start_time: string;
+	end_time: string;
+	benefit_ids: string[];
+}
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export function EventDataTable<TData, TValue>({
 	columns,
 	data,
+	onRefresh,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -89,13 +103,52 @@ export function EventDataTable<TData, TValue>({
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
 	const [stats, setStats] = useState<ApiResponse | null>(null);
-
+	const [availableBenefits, setAvailableBenefits] = useState<any[]>([]);
+	const [newBenefit, setNewBenefit] = useState("");
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+	// Event form state
+	const [eventForm, setEventForm] = useState<CreateEventData>({
+		name: "",
+		location: "",
+		start_date: "",
+		end_date: "",
+		start_time: "",
+		end_time: "",
+		benefit_ids: [],
+	});
 
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
 		setTableData(data);
 	}, [data]);
+
+	// Fetch available benefits
+	const fetchAvailableBenefits = async () => {
+		try {
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) return;
+
+			const response = await axios.get(`${BASE_URL}/benefit`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
+
+			if (response.data.status === "success") {
+				setAvailableBenefits(response.data.data);
+			}
+		} catch (error) {
+			console.error("Error fetching benefits:", error);
+		}
+	};
+
+	useEffect(() => {
+		fetchAvailableBenefits();
+	}, []);
 
 	const openModal = () => {
 		setModalOpen(true);
@@ -103,7 +156,150 @@ export function EventDataTable<TData, TValue>({
 
 	const closeModal = () => {
 		setModalOpen(false);
+		// Reset form when modal closes
+		setEventForm({
+			name: "",
+			location: "",
+			start_date: "",
+			end_date: "",
+			start_time: "",
+			end_time: "",
+			benefit_ids: [],
+		});
+		setNewBenefit("");
 	};
+
+	const handleAddEvent = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Validate required fields
+			if (
+				!eventForm.name ||
+				!eventForm.location ||
+				!eventForm.start_date ||
+				!eventForm.end_date ||
+				!eventForm.start_time ||
+				!eventForm.end_time
+			) {
+				toast.error("Please fill in all required fields.");
+				return;
+			}
+
+			const response = await axios.post(
+				`${BASE_URL}/event`,
+				{
+					name: eventForm.name,
+					location: eventForm.location,
+					start_date: eventForm.start_date,
+					end_date: eventForm.end_date,
+					start_time: eventForm.start_time,
+					end_time: eventForm.end_time,
+					benefit_ids: eventForm.benefit_ids,
+				},
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "success") {
+				toast.success("Event created successfully!");
+				closeModal();
+
+				// Call the onRefresh prop to trigger refresh in parent component
+				if (onRefresh) {
+					onRefresh();
+				} else {
+					// Fallback: refresh the local table data
+					await fetchEvents();
+				}
+			}
+		} catch (error) {
+			console.error("Error creating event:", error);
+			if (axios.isAxiosError(error)) {
+				toast.error(
+					error.response?.data?.message ||
+						"Failed to create event. Please try again."
+				);
+			} else {
+				toast.error("An unexpected error occurred. Please try again.");
+			}
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const fetchEvents = async (page = 1, limit = 50) => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+
+			const accessToken = session?.accessToken;
+			if (!accessToken) {
+				console.error("No access token found.");
+				setIsLoading(false);
+				return;
+			}
+
+			const response = await axios.get<ApiResponse>(
+				`${BASE_URL}/event?page=${page}&limit=${limit}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setTableData(response.data.data as unknown as TData[]);
+
+				console.log("Events Data:", response.data.data);
+				console.log("Pagination:", response.data.pagination);
+			}
+		} catch (error) {
+			console.error("Error fetching events data:", error);
+			toast.error("Failed to fetch events.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const addBenefit = (benefitId: string) => {
+		if (benefitId && !eventForm.benefit_ids.includes(benefitId)) {
+			setEventForm({
+				...eventForm,
+				benefit_ids: [...eventForm.benefit_ids, benefitId],
+			});
+			setNewBenefit("");
+		}
+	};
+
+	const removeBenefit = (benefitIdToRemove: string) => {
+		setEventForm({
+			...eventForm,
+			benefit_ids: eventForm.benefit_ids.filter(
+				(benefitId) => benefitId !== benefitIdToRemove
+			),
+		});
+	};
+
+	const getBenefitName = (benefitId: string) => {
+		const benefit = availableBenefits.find((b) => b.id === benefitId);
+		return benefit ? benefit.name : "Unknown Benefit";
+	};
+
 	// Function to filter data based on date range
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
@@ -111,9 +307,9 @@ export function EventDataTable<TData, TValue>({
 			return;
 		}
 
-		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.date);
-			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		const filteredData = data.filter((event: any) => {
+			const eventDate = new Date(event.start_date);
+			return eventDate >= dateRange.from! && eventDate <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
@@ -130,8 +326,10 @@ export function EventDataTable<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else {
 			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+				(event) =>
+					(event as any)?.is_active?.toString().toLowerCase() ===
+						status.toLowerCase() ||
+					(event as any)?.status?.toLowerCase() === status.toLowerCase()
 			);
 
 			setTableData(filteredData as TData[]);
@@ -144,7 +342,7 @@ export function EventDataTable<TData, TValue>({
 
 		// Create a new workbook and add the worksheet
 		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Events");
 
 		// Generate a binary string from the workbook
 		const binaryString = XLSX.write(workbook, {
@@ -161,7 +359,7 @@ export function EventDataTable<TData, TValue>({
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = "staffs.xlsx";
+		link.download = "events.xlsx";
 		link.click();
 
 		// Clean up
@@ -174,63 +372,6 @@ export function EventDataTable<TData, TValue>({
 		const view = new Uint8Array(buf);
 		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
 		return buf;
-	};
-
-	const bulkDeleteStaff = async () => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				toast.error("No access token found. Please log in again.");
-				return;
-			}
-
-			const selectedIds = Object.keys(rowSelection).map(
-				(index) => (tableData[parseInt(index)] as any)?.id
-			);
-
-			if (selectedIds.length === 0) {
-				toast.warn("No staff selected for deletion.");
-				return;
-			}
-
-			console.log("Selected IDs for deletion:", selectedIds);
-
-			const response = await axios.delete(
-				"https://api.medbankr.ai/api/v1/administrator/user",
-				{
-					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				toast.success("Selected staff deleted successfully!");
-
-				// Update the table data by filtering out the deleted staff
-				setTableData((prevData) =>
-					prevData.filter((staff) => !selectedIds.includes((staff as any).id))
-				);
-
-				// Clear the selection
-				setRowSelection({});
-			}
-		} catch (error) {
-			console.error("Error bulk deleting staff:", error);
-			if (axios.isAxiosError(error)) {
-				toast.error(
-					error.response?.data?.message ||
-						"Failed to delete staff. Please try again."
-				);
-			} else {
-				toast.error("An unexpected error occurred. Please try again.");
-			}
-		}
 	};
 
 	const table = useReactTable({
@@ -264,59 +405,84 @@ export function EventDataTable<TData, TValue>({
 					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out w-[650px] form-big">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Event Name</p>
+										<p className="text-xs text-primary-6">Event Name *</p>
 										<Input
 											type="text"
-											placeholder="Enter First Name"
+											placeholder="Enter Event Name"
 											className="focus:border-none"
+											value={eventForm.name}
+											onChange={(e) =>
+												setEventForm({ ...eventForm, name: e.target.value })
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Location</p>
+										<p className="text-xs text-primary-6">Location *</p>
 										<Input
 											type="text"
 											placeholder="Enter Location"
 											className="focus:border-none"
+											value={eventForm.location}
+											onChange={(e) =>
+												setEventForm({ ...eventForm, location: e.target.value })
+											}
 										/>
 									</div>
 								</div>
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Date</p>
+										<p className="text-xs text-primary-6">Start Date *</p>
 										<Input
 											type="date"
-											placeholder="Enter First Name"
 											className="focus:border-none"
+											value={eventForm.start_date}
+											onChange={(e) =>
+												setEventForm({
+													...eventForm,
+													start_date: e.target.value,
+												})
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Date</p>
+										<p className="text-xs text-primary-6">End Date *</p>
 										<Input
 											type="date"
-											placeholder="Enter Last Name"
 											className="focus:border-none"
+											value={eventForm.end_date}
+											onChange={(e) =>
+												setEventForm({ ...eventForm, end_date: e.target.value })
+											}
 										/>
 									</div>
 								</div>
 
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Start Time</p>
+										<p className="text-xs text-primary-6">Start Time *</p>
 										<Input
 											type="time"
-											placeholder="Enter First Name"
 											className="focus:border-none"
+											value={eventForm.start_time}
+											onChange={(e) =>
+												setEventForm({
+													...eventForm,
+													start_time: e.target.value,
+												})
+											}
 										/>
 									</div>
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">End Time</p>
+										<p className="text-xs text-primary-6">End Time *</p>
 										<Input
 											type="time"
-											placeholder="Enter Last Name"
 											className="focus:border-none"
+											value={eventForm.end_time}
+											onChange={(e) =>
+												setEventForm({ ...eventForm, end_time: e.target.value })
+											}
 										/>
 									</div>
 								</div>
@@ -324,17 +490,45 @@ export function EventDataTable<TData, TValue>({
 						</div>
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col p-3 gap-4 bg-white shadow-lg rounded-lg">
-								{/* First Name & Last Name Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">
 											Benefits (optional)
 										</p>
-										<Input
-											type="text"
-											placeholder="Type benefit name and press Enter to add them"
-											className="focus:border-none"
-										/>
+										<div className="flex gap-2">
+											<select
+												className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+												value={newBenefit}
+												onChange={(e) => {
+													if (e.target.value) {
+														addBenefit(e.target.value);
+													}
+												}}>
+												<option value="">Select a benefit</option>
+												{availableBenefits.map((benefit) => (
+													<option key={benefit.id} value={benefit.id}>
+														{benefit.name} ({benefit.type})
+													</option>
+												))}
+											</select>
+										</div>
+										<div className="flex flex-wrap gap-2 mt-2">
+											{eventForm.benefit_ids.map((benefitId, index) => (
+												<div
+													key={index}
+													className="bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+													<span className="text-xs">
+														{getBenefitName(benefitId)}
+													</span>
+													<button
+														type="button"
+														onClick={() => removeBenefit(benefitId)}
+														className="text-red-500 hover:text-red-700">
+														×
+													</button>
+												</div>
+											))}
+										</div>
 									</div>
 								</div>
 							</div>
@@ -347,6 +541,7 @@ export function EventDataTable<TData, TValue>({
 							</Button>
 							<Button
 								className="bg-secondary-1 text-white font-inter text-xs px-4 py-2"
+								onClick={handleAddEvent}
 								disabled={isLoading}>
 								{isLoading ? "Creating Event..." : "Create Event"}
 							</Button>
@@ -356,22 +551,20 @@ export function EventDataTable<TData, TValue>({
 			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Pending", "Closed"].map(
-						(status, index, arr) => (
-							<p
-								key={status}
-								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
-									selectedStatus === status
-										? "bg-primary-5 text-dark-1"
-										: "text-dark-1"
-								} 
+					{["View All", "Active", "Closed"].map((status, index, arr) => (
+						<p
+							key={status}
+							className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+								selectedStatus === status
+									? "bg-primary-5 text-dark-1"
+									: "text-dark-1"
+							} 
 			${index === 0 ? "rounded-l-lg firstRound" : ""} 
 			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
-								onClick={() => handleStatusFilter(status)}>
-								{status}
-							</p>
-						)
-					)}
+							onClick={() => handleStatusFilter(status)}>
+							{status}
+						</p>
+					))}
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input

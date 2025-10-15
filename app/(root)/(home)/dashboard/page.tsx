@@ -13,51 +13,22 @@ import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 interface DashboardData {
-	user: {
-		total: number;
-		percentage_change: number;
-	};
-	active_user_today: {
-		total: number;
-		percentage_change: number;
-	};
-	active_user_week: {
-		total: number;
-		percentage_change: number;
-	};
-	active_user_month: {
-		total: number;
-		percentage_change: number;
-	};
-	new_registration: {
-		total: number;
-		percentage_change: number;
-	};
-	user_growth_rate: {
-		total: number;
-		percentage_change: number;
-	};
-	user_retention_rate: {
-		total: number;
-		percentage_change: number;
-	};
+	total_staff: number;
+	total_beneficiaries: number;
+	beneficiaries_with_facial_bio: number;
+	beneficiaries_without_facial_bio: number;
+	total_events: number;
+	active_beneficiaries: number;
+	inactive_beneficiaries: number;
 }
 
-interface AdditionalStats {
-	totalActiveAppointments: number;
-	totalSpecialistProvider: number;
-	totalTransactions: number;
-	totalDocuments: number;
-	totalAppointments: number;
-}
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 function Dashboard() {
 	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
 		null
 	);
 	const [isLoading, setIsLoading] = useState(true);
-	const [additionalStats, setAdditionalStats] =
-		useState<AdditionalStats | null>(null);
 	const [dataLoaded, setDataLoaded] = useState(false);
 
 	const fetchDashboardData = async () => {
@@ -74,53 +45,18 @@ function Dashboard() {
 				return;
 			}
 
-			// Fetch all data in parallel
-			const [userResponse, additionalResponse] = await Promise.all([
-				axios.get(
-					"https://api.medbankr.ai/api/v1/administrator/dashboard/user",
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${accessToken}`,
-						},
-					}
-				),
-				axios.get(
-					"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${accessToken}`,
-						},
-					}
-				),
-				// Simulate additional stats fetch - replace with actual API calls
-				new Promise((resolve) =>
-					setTimeout(
-						() =>
-							resolve({
-								data: {
-									totalActiveAppointments: 345,
-									totalSpecialistProvider: 45678,
-									totalTransactions: 2524000,
-									totalAppointments: 45678,
-								},
-							}),
-						500
-					)
-				),
-			]);
+			const response = await axios.get(`${BASE_URL}/analytics`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (userResponse.data.status === true) {
-				setDashboardData(userResponse.data.data);
+			if (response.data.status === "success") {
+				setDashboardData(response.data.data);
 			} else {
-				toast.error("Failed to fetch user dashboard data.");
+				toast.error("Failed to fetch dashboard data.");
 			}
-
-			// Set additional stats
-			setAdditionalStats(
-				(additionalResponse as { data: AdditionalStats }).data
-			);
 		} catch (error) {
 			console.error("Error fetching dashboard data:", error);
 			toast.error("Failed to fetch dashboard data. Please try again.");
@@ -226,7 +162,7 @@ function Dashboard() {
 	}
 
 	// Error state
-	if (!dataLoaded || !dashboardData || !additionalStats) {
+	if (!dataLoaded || !dashboardData) {
 		return (
 			<div className="w-full overflow-x-hidden">
 				<HeaderBox />
@@ -259,43 +195,61 @@ function Dashboard() {
 							</p>
 						</div>
 
-						<div className="flex flex-row justify-between items-center w-full gap-3">
+						<div className="flex flex-wrap justify-start items-center w-full gap-3">
 							<StatCard
-								title="Total Beneficiary"
-								value={dashboardData.user.total}
-								percentage={`${dashboardData.user.percentage_change.toFixed(
-									1
-								)}%`}
-								positive={dashboardData.user.percentage_change >= 0}
+								title="Total Staff"
+								value={dashboardData.total_staff}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]" // subtracting gap
 							/>
 
 							<StatCard
-								title="Active this month"
-								value={dashboardData.active_user_today.total}
-								percentage={`${dashboardData.active_user_today.percentage_change.toFixed(
-									1
-								)}%`}
-								positive={
-									dashboardData.active_user_today.percentage_change >= 0
-								}
+								title="Total Beneficiaries"
+								value={dashboardData.total_beneficiaries}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
 							/>
+
 							<StatCard
-								title="New Enrollments"
-								value={dashboardData.active_user_week.total}
-								percentage={`${dashboardData.active_user_week.percentage_change.toFixed(
-									1
-								)}%`}
-								positive={dashboardData.active_user_week.percentage_change >= 0}
+								title="With Facial Bio"
+								value={dashboardData.beneficiaries_with_facial_bio}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
 							/>
+
 							<StatCard
-								title="Device Online"
-								value={dashboardData.active_user_month.total}
-								percentage={`${dashboardData.active_user_month.percentage_change.toFixed(
-									1
-								)}%`}
-								positive={
-									dashboardData.active_user_month.percentage_change >= 0
-								}
+								title="Without Facial Bio"
+								value={dashboardData.beneficiaries_without_facial_bio}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
+							/>
+
+							<StatCard
+								title="Total Events"
+								value={dashboardData.total_events}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
+							/>
+
+							<StatCard
+								title="Active Beneficiaries"
+								value={dashboardData.active_beneficiaries}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
+							/>
+
+							<StatCard
+								title="Inactive Beneficiaries"
+								value={dashboardData.inactive_beneficiaries}
+								percentage="0"
+								positive={true}
+								className="w-[calc(25%-0.75rem)]"
 							/>
 						</div>
 					</div>

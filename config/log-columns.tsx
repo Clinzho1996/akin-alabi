@@ -8,8 +8,6 @@ import {
 	VisibilityState,
 } from "@tanstack/react-table";
 
-import Modal from "@/components/Modal";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { format, isValid, parseISO } from "date-fns";
@@ -31,9 +29,22 @@ export type Logs = {
 		first_name: string;
 		last_name: string;
 		staff_code: string;
+		email: string;
+		phone: string | null;
 		role: string;
+		is_active: boolean;
+		last_logged_in: string | null;
+		created_at: string;
+		updated_at: string;
 	};
 };
+
+interface ApiResponse {
+	status: string;
+	data: Logs[];
+}
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const LogTable = () => {
 	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
@@ -106,6 +117,9 @@ const LogTable = () => {
 							{fullName}
 						</span>
 						<span className="text-xs text-gray-500">{staffCode}</span>
+						<span className="text-xs text-gray-400 capitalize">
+							{user?.role}
+						</span>
 					</div>
 				);
 			},
@@ -211,24 +225,11 @@ const LogTable = () => {
 		},
 	];
 
-	const handleDelete = () => {
-		const selectedRowIds = Object.keys(rowSelection).filter(
-			(key) => rowSelection[key]
-		);
-
-		const filteredData = tableData.filter(
-			(row: { id: string }) => !selectedRowIds.includes(row.id)
-		);
-
-		setTableData(filteredData);
-		setRowSelection({});
-	};
-
 	const fetchLogs = async () => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
-			const accessToken = session?.backendData?.token;
+			const accessToken = session?.accessToken;
 
 			if (!accessToken) {
 				console.error("No access token found.");
@@ -236,18 +237,16 @@ const LogTable = () => {
 				return;
 			}
 
-			const response = await axios.get<{
-				status: string;
-				message: string;
-				data: Logs[];
-			}>("https://api.wowdev.com.ng/api/v1/log", {
+			const response = await axios.get<ApiResponse>(`${BASE_URL}/log`, {
 				headers: {
 					Accept: "application/json",
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
 
-			setTableData(response.data.data);
+			if (response.data.status === "success") {
+				setTableData(response.data.data);
+			}
 		} catch (error) {
 			console.error("Error fetching log data:", error);
 		} finally {
@@ -262,48 +261,6 @@ const LogTable = () => {
 	return (
 		<>
 			<LogDataTable columns={columns} data={tableData} />
-
-			{isRestoreModalOpen && (
-				<Modal onClose={closeRestoreModal} isOpen={isRestoreModalOpen}>
-					<p className="mt-4">
-						Are you sure you want to suspend {selectedRow?.user?.first_name}'s
-						account?
-					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeRestoreModal}>
-							Cancel
-						</Button>
-						<Button className="bg-[#F04F4A] text-white font-inter text-xs modal-delete">
-							Yes, Confirm
-						</Button>
-					</div>
-				</Modal>
-			)}
-
-			{isDeleteModalOpen && (
-				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
-					<p>Are you sure you want to delete this log entry?</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeDeleteModal}>
-							Cancel
-						</Button>
-						<Button
-							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={() => {
-								handleDelete();
-								closeDeleteModal();
-							}}>
-							Yes, Confirm
-						</Button>
-					</div>
-				</Modal>
-			)}
 		</>
 	);
 };

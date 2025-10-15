@@ -1,4 +1,5 @@
 // components/StatCard.tsx
+import clsx from "clsx"; // optional utility for conditional classNames
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 interface StatCardProps {
@@ -7,6 +8,7 @@ interface StatCardProps {
 	unit?: string;
 	percentage?: string;
 	positive?: boolean;
+	className?: string; // optional className
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -15,15 +17,21 @@ const StatCard: React.FC<StatCardProps> = ({
 	unit,
 	percentage,
 	positive = true,
+	className,
 }) => {
 	return (
-		<div className="rounded-xl border border-gray-200 p-4 flex justify-between items-start  bg-white shadow-sm w-full">
+		<div
+			className={clsx(
+				"rounded-xl border border-gray-200 p-4 flex justify-between items-start bg-white shadow-sm w-full",
+				className // will merge optional className from parent
+			)}>
 			<div>
 				<p className="text-sm text-gray-500 font-medium">{title}</p>
 				<p className="text-3xl font-medium text-black mt-3">
 					{value} {unit}
 				</p>
 			</div>
+
 			{percentage && (
 				<div
 					className={`flex items-center text-sm font-medium rounded-lg ${
