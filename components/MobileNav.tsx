@@ -130,27 +130,17 @@ const MobileNav = () => {
 									{session?.user && (
 										<div className="flex flex-row justify-end gap-2 items-center mx-2 px-2 w-fit">
 											<div className="flex justify-center items-center border-[1px] border-dark-3 rounded-full overflow-hidden">
-												{session.user.image ? (
-													<Image
-														src={session.user.image}
-														alt="profile"
-														className="object-contain w-[50px] h-[50px] lg:w-[50px] lg:h-[42px]"
-														width={50}
-														height={50}
-													/>
-												) : (
-													<div className="flex items-center justify-center w-full h-full bg-dark-3">
-														<h2 className="text-white font-bold text-lg">
-															{getNameInitials({
-																name: session?.user?.name || "",
-															})}
-														</h2>
-													</div>
-												)}
+												<div className="flex items-center justify-center w-full h-full bg-dark-3">
+													<h2 className="text-white font-bold text-lg">
+														{getNameInitials({
+															name: session?.user?.firstName || "",
+														})}
+													</h2>
+												</div>
 											</div>
 											<div className="block">
 												<h3 className="text-dark-1 text-sm font-normal font-inter">
-													{session.user.name}
+													{session.user.firstName}
 												</h3>
 												<h3 className="text-xs text-dark-3">
 													{session.user.email}
