@@ -181,7 +181,7 @@ function RoleManagement() {
 						<StatCard
 							title="Total User (Staff)"
 							value={stats?.overview.total ?? 0}
-							percentage="36%"
+							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>
@@ -189,14 +189,14 @@ function RoleManagement() {
 						<StatCard
 							title="Total Active User (Staff)"
 							value={stats?.overview.active ?? 0}
-							percentage="24%"
+							percentage="0%"
 							positive={false}
 							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Suspended User (Staff)"
 							value={stats?.overview.active ?? 0}
-							percentage="18%"
+							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>

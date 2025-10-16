@@ -8,153 +8,83 @@ import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 
-export type EndUser = {
-	id: string;
-	_id: string;
-	createdAt: string;
-	public_id?: string;
-	full_name: string | null;
-	profile_pic?: string | null;
-	email: string;
-	status: string;
-	date_of_birth: string | null;
-	gender: string | null;
-	created_at: string;
-	verified: boolean;
-	role: string;
-	pic?: string | null;
-};
-
-interface ApiResponse {
-	status: boolean;
-	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, unknown>;
+interface DashboardData {
+	total_staff: number;
+	total_beneficiaries: number;
+	beneficiaries_with_facial_bio: number;
+	beneficiaries_without_facial_bio: number;
+	total_events: number;
+	active_beneficiaries: number;
+	inactive_beneficiaries: number;
 }
+
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 function EventManagement() {
-	const [isLoading, setIsLoading] = useState(false);
-	const [stats, setStats] = useState<ApiResponse | null>(null);
-	const fetchUsers = async (page = 1, limit = 5000) => {
+	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+		null
+	);
+	const [isLoading, setIsLoading] = useState(true);
+	const [dataLoaded, setDataLoaded] = useState(false);
+
+	const fetchDashboardData = async () => {
 		try {
 			setIsLoading(true);
+			setDataLoaded(false);
 			const session = await getSession();
-
 			const accessToken = session?.accessToken;
+
 			if (!accessToken) {
 				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
 				setIsLoading(false);
 				return;
 			}
 
-			const response = await axios.get(
-				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
+			const response = await axios.get(`${BASE_URL}/analytics`, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-			if (response.data.status === true) {
-				// Map the API response to match the `EndUser` type
-				interface ApiUser {
-					_id: string;
-					createdAt: string;
-					public_id?: string;
-					profile_pic?: string | null;
-					full_name: string | null;
-					email: string;
-					status: string;
-					date_of_birth: string | null;
-					gender: string | null;
-					verified: boolean;
-					role: string;
-				}
-
-				interface FormattedUser {
-					id: string;
-					_id: string;
-					createdAt: string;
-					public_id?: string;
-					pic?: string | null;
-					full_name: string | null;
-					email: string;
-					status: string;
-					date_of_birth: string | null;
-					gender: string | null;
-					created_at: string;
-					verified: boolean;
-					role: string;
-				}
-
-				const formattedData: FormattedUser[] = (
-					response.data.data as ApiUser[]
-				).map(
-					(user: ApiUser): FormattedUser => ({
-						id: user._id,
-						_id: user._id,
-						createdAt: user.createdAt,
-						public_id: user.public_id,
-						pic: user.profile_pic,
-						full_name: user.full_name,
-						email: user.email,
-						status: user.status,
-						date_of_birth: user.date_of_birth,
-						gender: user.gender,
-						created_at: user.createdAt,
-						verified: user.verified,
-						role: user.role,
-					})
-				);
-
-				console.log("Users Data:", formattedData);
-			}
-
-			if (response.data.overview) {
-				setStats({
-					status: response.data.status,
-					message: response.data.message,
-					data: response.data.data,
-					overview: {
-						total: response.data.overview.total,
-						active: response.data.overview.active,
-						disable: response.data.overview.disable,
-					},
-					pagination: {
-						total: response.data.pagination.total,
-						page: response.data.pagination.page,
-						limit: response.data.pagination.limit,
-						pages: response.data.pagination.pages,
-					},
-					filters: response.data.filters,
-				});
+			if (response.data.status === "success") {
+				setDashboardData(response.data.data);
+			} else {
+				toast.error("Failed to fetch dashboard data.");
 			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching dashboard data:", error);
+			toast.error("Failed to fetch dashboard data. Please try again.");
 		} finally {
 			setIsLoading(false);
+			setDataLoaded(true);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 5000); // Fetch first page with higher limit
+		fetchDashboardData();
 	}, []);
 
 	if (isLoading) {
 		return <Loader />;
+	}
+
+	// Error state
+	if (!dataLoaded || !dashboardData) {
+		return (
+			<div className="w-full overflow-x-hidden">
+				<HeaderBox />
+				<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
+					An overview of the Akin Alabi Foundation, highlighting its
+					beneficiaries, devices used, reports, and user engagement.
+				</p>
+				<div className="bg-[#fff] flex flex-col px-4 py-2 gap-2 w-full max-w-[100vw]">
+					<div className="text-center p-8">Failed to load dashboard data</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -179,30 +109,30 @@ function EventManagement() {
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Check-ins"
-							value={stats?.overview.total ?? 0}
-							percentage="36%"
+							value={dashboardData.active_beneficiaries}
+							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
 							title="Total Present"
-							value={stats?.overview.active ?? 0}
-							percentage="24%"
+							value={dashboardData.active_beneficiaries}
+							percentage="0%"
 							positive={false}
 							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Absent "
-							value={stats?.overview.active ?? 0}
-							percentage="18%"
+							value={dashboardData.active_beneficiaries}
+							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Late "
-							value={stats?.overview.active ?? 0}
-							percentage="18%"
+							value={dashboardData.active_beneficiaries}
+							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>
