@@ -42,7 +42,6 @@ interface EventData {
 	created_at: string;
 	updated_at: string;
 	benefits: Benefit[];
-	attendances: any[];
 }
 
 interface ApiResponse {
@@ -447,7 +446,7 @@ function Overview() {
 			{/* Delete Confirmation Modal */}
 			{isDeleteModalOpen && (
 				<Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
-					<p>Are you sure you want to delete "{eventData?.name}"?</p>
+					<p>Are you sure you want to delete {eventData?.name}?</p>
 					<p className="text-sm text-primary-6">
 						This action cannot be undone and will remove the benefit from all
 						associated events.
