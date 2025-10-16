@@ -14,37 +14,40 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-export type UserStats = {
-	logins: {
-		total: number;
-		percentChange: number;
-	};
-	files: {
-		total: number;
-		percentChange: number;
-	};
-	medications: {
-		total: number;
-		percentChange: number;
-	};
-	chats: {
-		total: number | null;
-		percentChange: number;
-	};
-	user: {
-		first_name?: string;
-		last_name?: string;
-		full_name?: string;
-	};
-};
+interface EventAnalytics {
+	total_present: number;
+	total_absent: number;
+	total_late: number;
+}
+
+interface EventData {
+	id: string;
+	name: string;
+	start_date: string;
+	end_date: string;
+	location: string;
+}
+
+interface AnalyticsResponse {
+	status: string;
+	message: string;
+	data: EventAnalytics;
+}
+
+interface EventResponse {
+	status: string;
+	message: string;
+	data: EventData;
+}
 
 function EventDetails() {
 	const { id } = useParams();
 
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [stats, setStats] = useState<UserStats | null>(null);
+	const [analytics, setAnalytics] = useState<EventAnalytics | null>(null);
+	const [eventData, setEventData] = useState<EventData | null>(null);
 
-	const fetchUserDetails = useCallback(async () => {
+	const fetchEventDetails = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const session = await getSession();
@@ -55,10 +58,11 @@ function EventDetails() {
 				return;
 			}
 
-			const accessToken = session?.accessToken;
+			const accessToken = session.accessToken;
 
-			const response = await axios.get(
-				`https://api.medbankr.ai/api/v1/administrator/user/${id}`,
+			// Fetch event analytics
+			const analyticsResponse = await axios.get<AnalyticsResponse>(
+				`${process.env.NEXT_PUBLIC_BACKEND_URL}/analytics/event/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -67,36 +71,28 @@ function EventDetails() {
 				}
 			);
 
-			if (response.data.status) {
-				const data = response.data.data;
-				setStats({
-					logins: {
-						total: data.logins.total,
-						percentChange: data.logins.percentChange,
+			// Fetch event basic data
+			const eventResponse = await axios.get<EventResponse>(
+				`${process.env.NEXT_PUBLIC_BACKEND_URL}/event/${id}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
 					},
-					files: {
-						total: data.files.total,
-						percentChange: data.files.percentChange,
-					},
-					medications: {
-						total: data.medications.total,
-						percentChange: data.medications.percentChange,
-					},
-					chats: {
-						total: data.chats.total,
-						percentChange: data.chats.percentChange,
-					},
-					user: {
-						first_name: data.user.data.user.full_name?.split(" ")[0] || "",
-						last_name: data.user.data.user.full_name?.split(" ")[1] || "",
-						full_name: data.user.data.user.full_name,
-					},
-				});
+				}
+			);
+
+			if (analyticsResponse.data.status === "success") {
+				setAnalytics(analyticsResponse.data.data);
+			}
+
+			if (eventResponse.data.status === "success") {
+				setEventData(eventResponse.data.data);
 			}
 		} catch (error: unknown) {
 			if (axios.isAxiosError(error)) {
 				console.log(
-					"Error fetching user details:",
+					"Error fetching event details:",
 					error.response?.data || error.message
 				);
 			} else {
@@ -108,8 +104,10 @@ function EventDetails() {
 	}, [id]);
 
 	useEffect(() => {
-		fetchUserDetails();
-	}, [fetchUserDetails]);
+		if (id) {
+			fetchEventDetails();
+		}
+	}, [fetchEventDetails, id]);
 
 	if (isLoading) {
 		return <Loader />;
@@ -126,7 +124,7 @@ function EventDetails() {
 				</Link>
 				<IconCaretRightFilled size={18} />
 				<p className="text-sm text-[#161616] font-normal ">
-					Detailed profile view for {stats?.user.full_name}
+					Detailed view for {eventData?.name || "Event"}
 				</p>
 			</div>
 			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
@@ -140,34 +138,36 @@ function EventDetails() {
 
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
-							title="Total Check-ins"
-							value={stats?.logins.total ?? 0}
-							percentage={`${stats?.logins.percentChange ?? 0}%`}
-							positive={(stats?.logins.percentChange ?? 0) >= 0}
-							className="w-full sm:w-[25%]"
-						/>
-
-						<StatCard
 							title="Total Present"
-							value={stats?.files.total ?? 0}
-							percentage={`${stats?.files.percentChange ?? 0}%`}
-							positive={(stats?.files.percentChange ?? 0) >= 0}
+							value={analytics?.total_present ?? 0}
+							percentage="0%" // You can calculate percentage if you have previous data
+							positive={true} // Set based on your business logic
 							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
 							title="Total Absent"
-							value={stats?.chats.total ?? 0}
-							percentage={`${stats?.chats.percentChange ?? 0}%`}
-							positive={(stats?.chats.percentChange ?? 0) >= 0}
+							value={analytics?.total_absent ?? 0}
+							percentage="0%" // You can calculate percentage if you have previous data
+							positive={false} // Absent is typically negative
 							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
 							title="Total Late"
-							value={stats?.medications.total ?? 0}
-							percentage={`${stats?.medications.percentChange ?? 0}%`}
-							positive={(stats?.medications.percentChange ?? 0) >= 0}
+							value={analytics?.total_late ?? 0}
+							percentage="0%" // You can calculate percentage if you have previous data
+							positive={false} // Late is typically negative
+							className="w-full sm:w-[25%]"
+						/>
+
+						<StatCard
+							title="Total Check-ins"
+							value={
+								(analytics?.total_present ?? 0) + (analytics?.total_late ?? 0)
+							}
+							percentage="0%" // You can calculate percentage if you have previous data
+							positive={true}
 							className="w-full sm:w-[25%]"
 						/>
 					</div>

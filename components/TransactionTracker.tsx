@@ -54,7 +54,7 @@ function TransactionTracker() {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`${BASE_URL}/analytics/attendance/graph?year=${year}`, // Updated endpoint
+				`${BASE_URL}/analytics/attendace/graph?year=${year}`, // Updated endpoint
 				{
 					headers: {
 						Accept: "application/json",
