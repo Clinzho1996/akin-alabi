@@ -120,12 +120,15 @@ export function EndUserDataTable<TData, TValue>({
 
 		if (status === "View All") {
 			setTableData(data); // Reset to all data
-		} else {
+		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+				(user) => (user as any)?.is_active === true
 			);
-
+			setTableData(filteredData as TData[]);
+		} else if (status === "Inactive") {
+			const filteredData = data?.filter(
+				(user) => (user as any)?.is_active === false
+			);
 			setTableData(filteredData as TData[]);
 		}
 	};

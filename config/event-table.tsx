@@ -46,7 +46,6 @@ import { getSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
 import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
@@ -324,54 +323,17 @@ export function EventDataTable<TData, TValue>({
 
 		if (status === "View All") {
 			setTableData(data); // Reset to all data
-		} else {
+		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(event) =>
-					(event as any)?.is_active?.toString().toLowerCase() ===
-						status.toLowerCase() ||
-					(event as any)?.status?.toLowerCase() === status.toLowerCase()
+				(user) => (user as any)?.is_active === true
 			);
-
+			setTableData(filteredData as TData[]);
+		} else if (status === "Closed") {
+			const filteredData = data?.filter(
+				(user) => (user as any)?.is_active === false
+			);
 			setTableData(filteredData as TData[]);
 		}
-	};
-
-	const handleExport = () => {
-		// Convert the table data to a worksheet
-		const worksheet = XLSX.utils.json_to_sheet(tableData);
-
-		// Create a new workbook and add the worksheet
-		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Events");
-
-		// Generate a binary string from the workbook
-		const binaryString = XLSX.write(workbook, {
-			bookType: "xlsx",
-			type: "binary",
-		});
-
-		// Convert the binary string to a Blob
-		const blob = new Blob([s2ab(binaryString)], {
-			type: "application/octet-stream",
-		});
-
-		// Create a link element and trigger the download
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = "events.xlsx";
-		link.click();
-
-		// Clean up
-		URL.revokeObjectURL(url);
-	};
-
-	// Utility function to convert string to ArrayBuffer
-	const s2ab = (s: string) => {
-		const buf = new ArrayBuffer(s.length);
-		const view = new Uint8Array(buf);
-		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-		return buf;
 	};
 
 	const table = useReactTable({

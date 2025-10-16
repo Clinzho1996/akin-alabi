@@ -227,18 +227,12 @@ export function RoleDataTable<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(staff) => (staff as any)?.is_active === true
-			);
-			setTableData(filteredData as TData[]);
-		} else if (status === "Inactive") {
-			const filteredData = data?.filter(
-				(staff) => (staff as any)?.is_active === false
+				(user) => (user as any)?.is_active === true
 			);
 			setTableData(filteredData as TData[]);
 		} else if (status === "Suspended") {
-			// You might need to adjust this based on your actual status field
 			const filteredData = data?.filter(
-				(staff) => (staff as any)?.status?.toLowerCase() === "suspended"
+				(user) => (user as any)?.is_active === false
 			);
 			setTableData(filteredData as TData[]);
 		}
@@ -488,7 +482,7 @@ export function RoleDataTable<TData, TValue>({
 			)}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Active", "Inactive"].map((status, index, arr) => (
+					{["View All", "Active", "Suspended"].map((status, index, arr) => (
 						<p
 							key={status}
 							className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${

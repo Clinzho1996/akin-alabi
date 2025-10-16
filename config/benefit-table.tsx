@@ -204,18 +204,12 @@ export function BenefitDataTable<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(benefit) => (benefit as any)?.is_active === true
+				(user) => (user as any)?.is_active === true
 			);
 			setTableData(filteredData as TData[]);
 		} else if (status === "Inactive") {
 			const filteredData = data?.filter(
-				(benefit) => (benefit as any)?.is_active === false
-			);
-			setTableData(filteredData as TData[]);
-		} else if (status === "Suspended") {
-			// You might need to adjust this based on your actual status field
-			const filteredData = data?.filter(
-				(benefit) => (benefit as any)?.status?.toLowerCase() === "suspended"
+				(user) => (user as any)?.is_active === false
 			);
 			setTableData(filteredData as TData[]);
 		}
