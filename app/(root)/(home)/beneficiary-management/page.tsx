@@ -112,6 +112,7 @@ function BeneficiaryManagement() {
 							value={dashboardData.total_beneficiaries}
 							percentage="0"
 							positive={true}
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -119,6 +120,7 @@ function BeneficiaryManagement() {
 							value={dashboardData.beneficiaries_with_facial_bio}
 							percentage="0"
 							positive={true}
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -126,6 +128,7 @@ function BeneficiaryManagement() {
 							value={dashboardData.beneficiaries_without_facial_bio}
 							percentage="0"
 							positive={true}
+							className="w-full sm:w-[25%]"
 						/>
 					</div>
 				</div>

@@ -183,6 +183,7 @@ function RoleManagement() {
 							value={stats?.overview.total ?? 0}
 							percentage="36%"
 							positive
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -190,12 +191,14 @@ function RoleManagement() {
 							value={stats?.overview.active ?? 0}
 							percentage="24%"
 							positive={false}
+							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Suspended User (Staff)"
 							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
+							className="w-full sm:w-[25%]"
 						/>
 					</div>
 				</div>

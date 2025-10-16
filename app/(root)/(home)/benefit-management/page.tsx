@@ -180,6 +180,7 @@ function BenefitManagement() {
 							value={stats?.overview.total ?? 0}
 							percentage="36%"
 							positive
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -187,18 +188,21 @@ function BenefitManagement() {
 							value={stats?.overview.active ?? 0}
 							percentage="24%"
 							positive={false}
+							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Inactive Benefit"
 							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
+							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Amount Disbursed"
 							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
+							className="w-full sm:w-[25%]"
 						/>
 					</div>
 				</div>

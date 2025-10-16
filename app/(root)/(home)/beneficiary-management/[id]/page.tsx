@@ -151,6 +151,7 @@ function BeneficiaryDetails() {
 							value={stats?.logins.total ?? 0}
 							percentage={`${stats?.logins.percentChange ?? 0}%`}
 							positive={(stats?.logins.percentChange ?? 0) >= 0}
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -158,6 +159,7 @@ function BeneficiaryDetails() {
 							value={stats?.files.total ?? 0}
 							percentage={`${stats?.files.percentChange ?? 0}%`}
 							positive={(stats?.files.percentChange ?? 0) >= 0}
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -165,6 +167,7 @@ function BeneficiaryDetails() {
 							value={stats?.chats.total ?? 0}
 							percentage={`${stats?.chats.percentChange ?? 0}%`}
 							positive={(stats?.chats.percentChange ?? 0) >= 0}
+							className="w-full sm:w-[25%]"
 						/>
 
 						<StatCard
@@ -172,6 +175,7 @@ function BeneficiaryDetails() {
 							value={stats?.medications.total ?? 0}
 							percentage={`${stats?.medications.percentChange ?? 0}%`}
 							positive={(stats?.medications.percentChange ?? 0) >= 0}
+							className="w-full sm:w-[25%]"
 						/>
 					</div>
 				</div>
