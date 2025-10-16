@@ -430,7 +430,7 @@ const EndUserTable = () => {
 					isOpen={isEditModalOpen}
 					onClose={closeEditModal}
 					title="Edit User">
-					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form modal-small">
+					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form modal">
 						<div className="mt-3 pt-2">
 							<div className="flex flex-col gap-2">
 								<p className="text-xs text-primary-6">First Name</p>

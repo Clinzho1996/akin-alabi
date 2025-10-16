@@ -109,7 +109,7 @@ function Settings() {
 											Phone Number
 										</p>
 										<h3 className="text-dark-1 text-sm font-normal font-inter border-[1px]  border-[#9F9E9E40] p-2 rounded-lg w-full">
-											{session.user.phone || "08012345678"}
+											{session.user.phone || "N/A"}
 										</h3>
 									</div>
 								</div>

@@ -452,7 +452,7 @@ const BenefitTable = () => {
 					isOpen={isEditModalOpen}
 					onClose={closeEditModal}
 					title="Update Benefit">
-					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form  w-[600px]">
+					<div className="bg-white p-0 rounded-lg transition-transform ease-in-out form modal  w-[600px]">
 						<div className="mt-3 pt-2 bg-[#F6F8FA] p-3 border rounded-lg border-[#E2E4E9]">
 							<div className="flex flex-col sm:flex-row gap-2 w-full bg-white shadow-lg p-3 rounded-lg">
 								<div className="w-full">
