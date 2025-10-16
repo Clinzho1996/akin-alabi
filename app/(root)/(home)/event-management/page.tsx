@@ -16,6 +16,9 @@ interface DashboardData {
 	beneficiaries_with_facial_bio: number;
 	beneficiaries_without_facial_bio: number;
 	total_events: number;
+	total_present: number;
+	total_absent: number;
+	total_late: number;
 	active_beneficiaries: number;
 	inactive_beneficiaries: number;
 }
@@ -109,7 +112,7 @@ function EventManagement() {
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Check-ins"
-							value={dashboardData.active_beneficiaries}
+							value={dashboardData.total_events}
 							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
@@ -117,21 +120,21 @@ function EventManagement() {
 
 						<StatCard
 							title="Total Present"
-							value={dashboardData.active_beneficiaries}
+							value={dashboardData.total_present}
 							percentage="0%"
 							positive={false}
 							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Absent "
-							value={dashboardData.active_beneficiaries}
+							value={dashboardData.total_absent}
 							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
 						/>
 						<StatCard
 							title="Total Late "
-							value={dashboardData.active_beneficiaries}
+							value={dashboardData.total_late}
 							percentage="0%"
 							positive
 							className="w-full sm:w-[25%]"
