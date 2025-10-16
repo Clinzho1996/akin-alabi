@@ -111,7 +111,7 @@ function EventManagement() {
 
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
-							title="Total Check-ins"
+							title="Total Events"
 							value={dashboardData.total_events}
 							percentage="0%"
 							positive
