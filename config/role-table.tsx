@@ -441,7 +441,6 @@ export function RoleDataTable<TData, TValue>({
 											<SelectContent className="bg-white z-10 select">
 												<SelectItem value="super_admin">Super Admin</SelectItem>
 												<SelectItem value="admin">Admin</SelectItem>
-												<SelectItem value="staff">Staff</SelectItem>
 												<SelectItem value="field_officer">
 													Field Officer
 												</SelectItem>

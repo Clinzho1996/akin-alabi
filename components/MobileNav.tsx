@@ -6,7 +6,7 @@ import {
 	SheetContent,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import { sidebarLinks } from "@/constants";
+import { overviewLinks, sidebarLinks } from "@/constants";
 import { cn } from "@/lib/utils";
 import { IconMenu } from "@tabler/icons-react";
 import { signOut, useSession } from "next-auth/react";
@@ -57,8 +57,8 @@ const MobileNav = () => {
 										href="/"
 										className="items-center gap-1 border-b-[1px] p-3 lg:flex">
 										<Image
-											src="/images/logo.png"
-											alt="One Acre Fund Logo"
+											src="/images/akin.png"
+											alt="Akin Alabi Logo"
 											width={200}
 											height={50}
 											className="w-fit justify-center h-[50px] flex flex-row "
@@ -67,6 +67,41 @@ const MobileNav = () => {
 									<p className="text-sm font-normal text-dark-2 pl-4 font-inter py-4">
 										MENU
 									</p>
+
+									{/* Overview Links */}
+									{overviewLinks.map((item) => {
+										const isActive =
+											pathname === item.route ||
+											pathname.startsWith(`${item.route}/`);
+
+										return (
+											<Link
+												href={item.route}
+												key={item.label}
+												className={cn(
+													"flex gap-2 items-center p-2 justify-start rounded-[8px] mx-4 my-0",
+													{
+														"bg-primary-5 border-[1px] border-primary-4":
+															isActive,
+													}
+												)}>
+												<Image
+													src={item.imgUrl}
+													alt={item.label}
+													width={20}
+													height={20}
+													className="w-[20px] h-[20px] object-contain flex"
+												/>
+												<p
+													className={cn("text-sm font-normal font-inter", {
+														"text-dark-1": isActive,
+													})}>
+													{item.label}
+												</p>
+											</Link>
+										);
+									})}
+
 									{sidebarLinks.map((item) => {
 										const isActive =
 											pathname === item.route ||
@@ -130,7 +165,7 @@ const MobileNav = () => {
 									{session?.user && (
 										<div className="flex flex-row justify-end gap-2 items-center mx-2 px-2 w-fit">
 											<div className="flex justify-center items-center border-[1px] border-dark-3 rounded-full overflow-hidden">
-												<div className="flex items-center justify-center w-full h-full bg-dark-3">
+												<div className="flex items-center justify-center w-[40px] h-[40px] bg-dark-3">
 													<h2 className="text-white font-bold text-lg">
 														{getNameInitials({
 															name: session?.user?.firstName || "",

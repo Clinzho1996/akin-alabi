@@ -106,7 +106,7 @@ function BeneficiaryManagement() {
 						</p>
 					</div>
 
-					<div className="flex flex-row justify-start items-center w-full gap-3">
+					<div className="flex flex-col sm:flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Beneficiaries"
 							value={dashboardData.total_beneficiaries}

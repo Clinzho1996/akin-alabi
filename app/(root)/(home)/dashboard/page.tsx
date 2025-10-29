@@ -201,7 +201,7 @@ function Dashboard() {
 								value={dashboardData.total_staff}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]" // subtracting gap
+								className="w-full sm:w-[calc(25%-0.75rem)]" // subtracting gap
 							/>
 
 							<StatCard
@@ -209,7 +209,7 @@ function Dashboard() {
 								value={dashboardData.total_beneficiaries}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 
 							<StatCard
@@ -217,7 +217,7 @@ function Dashboard() {
 								value={dashboardData.beneficiaries_with_facial_bio}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 
 							<StatCard
@@ -225,7 +225,7 @@ function Dashboard() {
 								value={dashboardData.beneficiaries_without_facial_bio}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 
 							<StatCard
@@ -233,7 +233,7 @@ function Dashboard() {
 								value={dashboardData.total_events}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 
 							<StatCard
@@ -241,7 +241,7 @@ function Dashboard() {
 								value={dashboardData.active_beneficiaries}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 
 							<StatCard
@@ -249,7 +249,7 @@ function Dashboard() {
 								value={dashboardData.inactive_beneficiaries}
 								percentage="0%"
 								positive={true}
-								className="w-[calc(25%-0.75rem)]"
+								className="w-full sm:w-[calc(25%-0.75rem)]"
 							/>
 						</div>
 					</div>

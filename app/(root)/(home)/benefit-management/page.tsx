@@ -174,7 +174,7 @@ function BenefitManagement() {
 						<p className="text-sm font-medium text-black">Benefit Overview</p>
 					</div>
 
-					<div className="flex flex-row justify-start items-center w-full gap-3">
+					<div className="flex flex-col sm:flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Benefit"
 							value={stats?.overview.total ?? 0}
