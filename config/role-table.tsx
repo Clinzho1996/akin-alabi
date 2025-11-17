@@ -47,7 +47,6 @@ import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -55,28 +54,9 @@ interface DataTableProps<TData, TValue> {
 	onRefresh?: () => void; // Add callback prop for refreshing data
 }
 
-interface ApiResponse {
-	status: boolean;
-	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, any>;
-}
-
 interface CreateStaffData {
 	first_name: string;
 	last_name: string;
-	staff_code: string;
 	email: string;
 	phone: string;
 	role: string;
@@ -107,7 +87,6 @@ export function RoleDataTable<TData, TValue>({
 	const [staffForm, setStaffForm] = useState<CreateStaffData>({
 		first_name: "",
 		last_name: "",
-		staff_code: "",
 		email: "",
 		phone: "",
 		role: "staff",
@@ -128,7 +107,6 @@ export function RoleDataTable<TData, TValue>({
 		setStaffForm({
 			first_name: "",
 			last_name: "",
-			staff_code: "",
 			email: "",
 			phone: "",
 			role: "staff",
@@ -151,7 +129,6 @@ export function RoleDataTable<TData, TValue>({
 			if (
 				!staffForm.first_name ||
 				!staffForm.last_name ||
-				!staffForm.staff_code ||
 				!staffForm.email ||
 				!staffForm.role
 			) {
@@ -164,7 +141,6 @@ export function RoleDataTable<TData, TValue>({
 				{
 					first_name: staffForm.first_name,
 					last_name: staffForm.last_name,
-					staff_code: staffForm.staff_code,
 					email: staffForm.email,
 					phone: staffForm.phone || null,
 					role: staffForm.role,
@@ -276,60 +252,6 @@ export function RoleDataTable<TData, TValue>({
 		return buf;
 	};
 
-	const bulkDeleteStaff = async () => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				toast.error("No access token found. Please log in again.");
-				return;
-			}
-
-			const selectedIds = Object.keys(rowSelection).map(
-				(index) => (tableData[parseInt(index)] as any)?.id
-			);
-
-			if (selectedIds.length === 0) {
-				toast.warn("No staff selected for deletion.");
-				return;
-			}
-
-			console.log("Selected IDs for deletion:", selectedIds);
-
-			const response = await axios.delete(`${BASE_URL}/staff/bulk-delete`, {
-				data: { ids: selectedIds },
-				headers: {
-					Accept: "application/json",
-					Authorization: `Bearer ${accessToken}`,
-				},
-			});
-
-			if (response.data.status === "success") {
-				toast.success("Selected staff deleted successfully!");
-
-				// Update the table data by filtering out the deleted staff
-				setTableData((prevData) =>
-					prevData.filter((staff) => !selectedIds.includes((staff as any).id))
-				);
-
-				// Clear the selection
-				setRowSelection({});
-			}
-		} catch (error) {
-			console.error("Error bulk deleting staff:", error);
-			if (axios.isAxiosError(error)) {
-				toast.error(
-					error.response?.data?.message ||
-						"Failed to delete staff. Please try again."
-				);
-			} else {
-				toast.error("An unexpected error occurred. Please try again.");
-			}
-		}
-	};
-
 	const table = useReactTable({
 		data: tableData,
 		columns,
@@ -398,21 +320,6 @@ export function RoleDataTable<TData, TValue>({
 								{/* Staff Code & Email Row */}
 								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
-										<p className="text-xs text-primary-6">Staff Code *</p>
-										<Input
-											type="text"
-											placeholder="Enter Staff Code"
-											className="focus:border-none"
-											value={staffForm.staff_code}
-											onChange={(e) =>
-												setStaffForm({
-													...staffForm,
-													staff_code: e.target.value,
-												})
-											}
-										/>
-									</div>
-									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">Email Address *</p>
 										<Input
 											type="email"
@@ -424,10 +331,6 @@ export function RoleDataTable<TData, TValue>({
 											}
 										/>
 									</div>
-								</div>
-
-								{/* Role & Phone Row */}
-								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">Role *</p>
 										<Select
@@ -447,7 +350,10 @@ export function RoleDataTable<TData, TValue>({
 											</SelectContent>
 										</Select>
 									</div>
+								</div>
 
+								{/* Role & Phone Row */}
+								<div className="flex flex-col sm:flex-row gap-4 w-full">
 									<div className="w-full flex flex-col gap-2">
 										<p className="text-xs text-primary-6">Phone</p>
 										<Input
