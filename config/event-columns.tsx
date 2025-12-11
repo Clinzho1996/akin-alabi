@@ -431,13 +431,15 @@ const EventTable = () => {
 			},
 		},
 		{
-			id: "beneficiaries",
-			header: "Beneficiaries",
+			id: "location",
+			header: "Location",
 			cell: ({ row }) => {
-				const beneficiariesCount = getTotalBeneficiaries(row.original);
+				const location = row.original.location;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
-						<span className="text-xs text-primary-6">{beneficiariesCount}</span>
+						<span className="text-xs text-primary-6 capitalize">
+							{location}
+						</span>
 					</div>
 				);
 			},

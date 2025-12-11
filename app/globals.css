@@ -85,6 +85,9 @@ body {
 	background-color: #f04f4a;
 }
 
+.modal-small {
+	width: 450px;
+}
 .text {
 	color: #333 !important;
 	font-size: 14px;

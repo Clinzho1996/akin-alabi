@@ -1,18 +1,13 @@
 "use client";
 
-import {
-	ColumnDef,
-	ColumnFiltersState,
-	RowSelectionState,
-	SortingState,
-	VisibilityState,
-} from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
 
+import Loader from "@/components/Loader";
 import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { format, isValid, parseISO } from "date-fns";
 import { getSession } from "next-auth/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LogDataTable } from "./log-table";
 
 // This type is used to define the shape of our data.
@@ -47,38 +42,9 @@ interface ApiResponse {
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const LogTable = () => {
-	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
-	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(false);
 
-	const [sorting, setSorting] = React.useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
-	);
-	const [columnVisibility, setColumnVisibility] =
-		React.useState<VisibilityState>({});
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-	const [globalFilter, setGlobalFilter] = useState("");
 	const [tableData, setTableData] = useState<Logs[]>([]);
-
-	const openRestoreModal = (row: any) => {
-		setSelectedRow(row.original);
-		setRestoreModalOpen(true);
-	};
-
-	const openDeleteModal = (row: any) => {
-		setSelectedRow(row.original);
-		setDeleteModalOpen(true);
-	};
-
-	const closeRestoreModal = () => {
-		setRestoreModalOpen(false);
-	};
-
-	const closeDeleteModal = () => {
-		setDeleteModalOpen(false);
-	};
 
 	const columns: ColumnDef<Logs>[] = [
 		{
@@ -260,6 +226,7 @@ const LogTable = () => {
 
 	return (
 		<>
+			{isLoading && <Loader />}
 			<LogDataTable columns={columns} data={tableData} />
 		</>
 	);

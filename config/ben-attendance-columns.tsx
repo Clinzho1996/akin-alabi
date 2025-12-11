@@ -207,7 +207,7 @@ const BeneficiaryAttendanceTable = () => {
 			accessorKey: "benefit.name",
 			header: "Benefit Received",
 			cell: ({ row }) => {
-				const benefitName = row.original.benefit.name || "N/A";
+				const benefitName = row.original.benefit?.name || "N/A";
 				return (
 					<span className="text-xs text-primary-6 capitalize">
 						{benefitName}

@@ -16,7 +16,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -45,7 +44,7 @@ import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import { EndUser } from "./end-user-columns";
+import { Attendance } from "./attendance-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -55,7 +54,7 @@ interface DataTableProps<TData, TValue> {
 interface ApiResponse {
 	status: boolean;
 	message: string;
-	data: EndUser[];
+	data: Attendance[];
 	overview: {
 		total: number;
 		disable: number;
@@ -102,6 +101,7 @@ export function AttendanceDataTable<TData, TValue>({
 	const closeModal = () => {
 		setModalOpen(false);
 	};
+
 	// Function to filter data based on date range
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
@@ -109,9 +109,9 @@ export function AttendanceDataTable<TData, TValue>({
 			return;
 		}
 
-		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.date);
-			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		const filteredData = data.filter((attendance: any) => {
+			const timeIn = new Date(attendance.time_in);
+			return timeIn >= dateRange.from! && timeIn <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
@@ -121,16 +121,45 @@ export function AttendanceDataTable<TData, TValue>({
 		filterDataByDateRange();
 	}, [dateRange]);
 
+	// Helper function to determine attendance status
+	const getAttendanceStatus = (attendance: any): string => {
+		if (!attendance.time_out) {
+			return "Present"; // No time_out means still present/checked in
+		} else {
+			// You could add logic here for "Late" if time_in is after event start time
+			const timeIn = new Date(attendance.time_in);
+			const eventStartTime = new Date(); // You need to get event start time from somewhere
+			// For now, let's just return "Checked Out"
+			return "Checked Out";
+		}
+	};
+
 	const handleStatusFilter = (status: string) => {
 		setSelectedStatus(status);
 
 		if (status === "View All") {
 			setTableData(data); // Reset to all data
 		} else {
-			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
-			);
+			const filteredData = data.filter((attendance: any) => {
+				const attendanceStatus = getAttendanceStatus(attendance);
+
+				if (status === "Present") {
+					return !attendance.time_out; // No time_out means present
+				} else if (status === "Absent") {
+					// This depends on your business logic - you might need to check against expected attendees
+					return false; // Placeholder - adjust based on your requirements
+				} else if (status === "Late") {
+					// Check if time_in is after event start time
+					// You'll need event start time data for this
+					const timeIn = new Date(attendance.time_in);
+					const eventStart = new Date(); // Get actual event start time
+					// For now, return false as placeholder
+					return false;
+				} else if (status === "Checked Out") {
+					return !!attendance.time_out; // Has time_out means checked out
+				}
+				return false;
+			});
 
 			setTableData(filteredData as TData[]);
 		}
@@ -142,7 +171,7 @@ export function AttendanceDataTable<TData, TValue>({
 
 		// Create a new workbook and add the worksheet
 		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
 
 		// Generate a binary string from the workbook
 		const binaryString = XLSX.write(workbook, {
@@ -159,7 +188,7 @@ export function AttendanceDataTable<TData, TValue>({
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = "staffs.xlsx";
+		link.download = "attendance.xlsx";
 		link.click();
 
 		// Clean up
@@ -174,7 +203,7 @@ export function AttendanceDataTable<TData, TValue>({
 		return buf;
 	};
 
-	const bulkDeleteStaff = async () => {
+	const bulkDeleteAttendance = async () => {
 		try {
 			const session = await getSession();
 			const accessToken = session?.accessToken;
@@ -190,16 +219,16 @@ export function AttendanceDataTable<TData, TValue>({
 			);
 
 			if (selectedIds.length === 0) {
-				toast.warn("No staff selected for deletion.");
+				toast.warn("No attendance records selected for deletion.");
 				return;
 			}
 
 			console.log("Selected IDs for deletion:", selectedIds);
 
 			const response = await axios.delete(
-				"https://api.medbankr.ai/api/v1/administrator/user",
+				"https://akin.wowdev.com.ng/api/v1/attendance/bulk", // Adjust endpoint as needed
 				{
-					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
+					data: { ids: selectedIds },
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
@@ -208,22 +237,22 @@ export function AttendanceDataTable<TData, TValue>({
 			);
 
 			if (response.status === 200) {
-				toast.success("Selected staff deleted successfully!");
+				toast.success("Selected attendance records deleted successfully!");
 
-				// Update the table data by filtering out the deleted staff
+				// Update the table data by filtering out the deleted records
 				setTableData((prevData) =>
-					prevData.filter((staff) => !selectedIds.includes((staff as any).id))
+					prevData.filter((record) => !selectedIds.includes((record as any).id))
 				);
 
 				// Clear the selection
 				setRowSelection({});
 			}
 		} catch (error) {
-			console.error("Error bulk deleting staff:", error);
+			console.error("Error bulk deleting attendance:", error);
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to delete staff. Please try again."
+						"Failed to delete attendance records. Please try again."
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -255,8 +284,8 @@ export function AttendanceDataTable<TData, TValue>({
 	return (
 		<div className="rounded-lg border-[1px] py-0">
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
-				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
-					{["View All", "Present", "Absent", "Late"].map(
+				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2 w-full sm:w-[50%]">
+					{["View All", "Present", "Checked Out", "Late"].map(
 						(status, index, arr) => (
 							<p
 								key={status}
@@ -273,16 +302,25 @@ export function AttendanceDataTable<TData, TValue>({
 						)
 					)}
 				</div>
-				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
+				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full sm:w-[50%]">
 					<Input
 						placeholder="Search User..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"
 					/>
-					<div className="w-[250px]">
-						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
-					</div>
+					<Button
+						onClick={handleExport}
+						className="bg-primary-6 text-white text-xs">
+						Export
+					</Button>
+					{Object.keys(rowSelection).length > 0 && (
+						<Button
+							onClick={bulkDeleteAttendance}
+							className="bg-primary-1 text-white text-xs">
+							Delete Selected ({Object.keys(rowSelection).length})
+						</Button>
+					)}
 				</div>
 			</div>
 

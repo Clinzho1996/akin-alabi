@@ -45,11 +45,32 @@ export type UserStats = {
 	};
 };
 
+export type UserData = {
+	data: {
+		id: string;
+		first_name: string;
+		last_name: string;
+		email: string;
+		phone: string;
+		date_of_birth: string;
+		gender: string;
+		address: string;
+		city: string;
+		state: string;
+		country: string;
+		postal_code: string;
+		is_active: boolean;
+		created_at: string;
+		updated_at: string;
+	};
+} | null;
+
 function BeneficiaryDetails() {
 	const { id } = useParams();
 
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [stats, setStats] = useState<UserStats | null>(null);
+	const [data, setData] = useState<UserData>(null);
 
 	const fetchUserDetails = useCallback(async () => {
 		setIsLoading(true);
@@ -65,7 +86,7 @@ function BeneficiaryDetails() {
 			const accessToken = session?.accessToken;
 
 			const response = await axios.get(
-				`https://api.medbankr.ai/api/v1/administrator/user/${id}`,
+				`https://akin.wowdev.com.ng/api/v1/beneficiary/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -76,6 +97,7 @@ function BeneficiaryDetails() {
 
 			if (response.data.status) {
 				const data = response.data.data;
+				setData(response.data);
 				setStats({
 					logins: {
 						total: data.logins.total,
@@ -133,7 +155,8 @@ function BeneficiaryDetails() {
 				</Link>
 				<IconCaretRightFilled size={18} />
 				<p className="text-sm text-[#161616] font-normal ">
-					Detailed profile view for {stats?.user.full_name}
+					Detailed profile view for {data?.data.first_name}{" "}
+					{data?.data.last_name}
 				</p>
 			</div>
 			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
