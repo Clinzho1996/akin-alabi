@@ -394,7 +394,7 @@ const AttendanceTable = () => {
 			accessorKey: "beneficiary.membership_code",
 			header: "Membership Code",
 			cell: ({ row }) => {
-				const code = row.original.beneficiary.membership_code || "N/A";
+				const code = row.original.beneficiary?.membership_code || "N/A";
 				return <span className="text-xs text-primary-6">{code}</span>;
 			},
 		},
@@ -403,8 +403,8 @@ const AttendanceTable = () => {
 			header: "Full Name",
 			cell: ({ row }) => {
 				const beneficiary = row.original.beneficiary;
-				const fullName = `${beneficiary.first_name} ${beneficiary.last_name}`;
-				const pic = beneficiary.pic;
+				const fullName = `${beneficiary?.first_name} ${beneficiary?.last_name}`;
+				const pic = beneficiary?.pic;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<Image
@@ -425,7 +425,7 @@ const AttendanceTable = () => {
 			accessorKey: "beneficiary.email",
 			header: "Email",
 			cell: ({ row }) => {
-				const email = row.original.beneficiary.email || "N/A";
+				const email = row.original.beneficiary?.email || "N/A";
 				return <span className="text-xs text-primary-6">{email}</span>;
 			},
 		},
