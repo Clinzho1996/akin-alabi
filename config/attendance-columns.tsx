@@ -317,7 +317,7 @@ const AttendanceTable = () => {
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to delete attendance record. Please try again."
+						"Failed to delete attendance record. Please try again"
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
