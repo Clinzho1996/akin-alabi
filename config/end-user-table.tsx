@@ -491,7 +491,7 @@ export function EndUserDataTable<TData, TValue>({
 	return (
 		<div className="rounded-lg border-[1px] py-0">
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
-				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2 w-full sm:w-[30%]">
+				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2 w-full ">
 					{["View All", "Active", "Inactive"].map((status, index, arr) => (
 						<p
 							key={status}

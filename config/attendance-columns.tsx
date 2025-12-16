@@ -481,28 +481,6 @@ const AttendanceTable = () => {
 				);
 			},
 		},
-		{
-			id: "actions",
-			header: "Actions",
-			cell: ({ row }) => (
-				<div className="flex gap-2">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => openEditModal(row)}
-						className="text-xs text-primary-6 hover:text-primary-8">
-						Edit
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => openDeleteModal(row)}
-						className="text-xs text-red-600 hover:text-red-800">
-						Delete
-					</Button>
-				</div>
-			),
-		},
 	];
 
 	return (

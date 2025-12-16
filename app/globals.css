@@ -47,7 +47,7 @@ body {
 	justify-content: center;
 	align-items: center;
 	text-align: center;
-	width: 80px;
+	width: 85px;
 	background-color: #297c66; /* Specific inline style */
 	padding: 0.15rem 0.25rem; /* Tailwind px-3 py-1 */
 	border-radius: 9999px; /* Tailwind rounded-full */
@@ -88,6 +88,10 @@ body {
 .modal-small {
 	width: 450px;
 }
+
+.bg-blue-600 {
+	background-color: #2563eb !important;
+}
 .text {
 	color: #333 !important;
 	font-size: 14px;
@@ -106,7 +110,7 @@ body {
 }
 
 .special-btn-farmer {
-	width: 550px;
+	width: 30%;
 }
 
 .firstRound {
