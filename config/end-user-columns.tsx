@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef, Row } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Printer } from "lucide-react";
 
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
@@ -20,7 +20,7 @@ import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { EndUserDataTable } from "./end-user-table";
 
@@ -106,6 +106,8 @@ const EndUserTable = () => {
 		total: 0,
 		pages: 1,
 	});
+	const [userToPrint, setUserToPrint] = useState<EndUser | null>(null);
+	const printRef = useRef<HTMLDivElement>(null);
 
 	const openEditModal = (row: Row<EndUser>) => {
 		const user = row.original;
@@ -277,6 +279,265 @@ const EndUserTable = () => {
 		return user.is_active ? "active" : "inactive";
 	};
 
+	// Print ID Card function
+	// Replace the existing printIDCard function with this updated version:
+
+	// Print ID Card function
+	const printIDCard = (user: EndUser) => {
+		const userFullName = getFullName(user);
+		const userDOB = user.dob ? new Date(user.dob).toLocaleDateString() : "N/A";
+		const today = new Date().toLocaleString();
+
+		const printWindow = window.open("", "_blank");
+		if (!printWindow) {
+			toast.error(
+				"Could not open print window. Please check your pop-up blocker."
+			);
+			return;
+		}
+
+		// Simple HTML content without complex image handling
+		const content = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<title>ID Card - ${user.membership_code}</title>
+			<style>
+				@page {
+					size: 80mm 50mm;
+					margin: 0;
+				}
+				
+				body {
+					margin: 0;
+					padding: 0;
+					font-family: Arial, sans-serif;
+					font-size: 10px;
+					background: white;
+				}
+				
+				.id-card {
+					width: 80mm;
+					height: 50mm;
+					border: 2px solid #000;
+					border-radius: 5px;
+					padding: 3mm;
+					box-sizing: border-box;
+					position: relative;
+				}
+				
+				.header {
+					text-align: center;
+					border-bottom: 1px solid #ccc;
+					padding-bottom: 2mm;
+					margin-bottom: 2mm;
+				}
+				
+				.header h2 {
+					margin: 0;
+					font-size: 12px;
+					color: #1e40af;
+				}
+				
+				.header p {
+					margin: 2px 0 0 0;
+					font-size: 8px;
+					color: #666;
+				}
+				
+				.content {
+					display: flex;
+					gap: 3mm;
+					margin: 2mm 0;
+				}
+				
+				.photo-container {
+					width: 25mm;
+					height: 25mm;
+					border: 1px solid #ccc;
+					border-radius: 3mm;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					background: #f5f5f5;
+					font-size: 9px;
+					color: #666;
+				}
+				
+				.photo-img {
+					width: 100%;
+					height: 100%;
+					object-fit: cover;
+					border-radius: 3mm;
+				}
+				
+				.details {
+					flex: 1;
+				}
+				
+				.detail-row {
+					display: flex;
+					margin-bottom: 2px;
+				}
+				
+				.label {
+					font-weight: bold;
+					width: 25mm;
+					color: #333;
+				}
+				
+				.value {
+					flex: 1;
+					color: #555;
+					text-transform: capitalize;
+				}
+				
+				.id-number {
+					font-family: 'Courier New', monospace;
+					font-weight: bold;
+					color: #1e40af;
+					font-size: 11px;
+				}
+				
+				.status {
+					display: inline-block;
+					padding: 1px 5px;
+					border-radius: 3px;
+					font-weight: bold;
+					font-size: 8px;
+					${
+						user.is_active
+							? "background: #10b981; color: white;"
+							: "background: #ef4444; color: white;"
+					}
+				}
+				
+				.footer {
+					border-top: 1px solid #ccc;
+					padding-top: 2mm;
+					margin-top: 2mm;
+					text-align: center;
+				}
+				
+				.barcode {
+					font-family: 'Courier New', monospace;
+					font-size: 14px;
+					letter-spacing: 1px;
+					background: #f5f5f5;
+					padding: 2px 5px;
+					border-radius: 3px;
+					margin-bottom: 2px;
+				}
+				
+				.print-info {
+					font-size: 7px;
+					color: #666;
+					text-align: right;
+					margin-top: 2mm;
+				}
+				
+				/* Hide during screen view, show during print */
+				@media screen {
+					body {
+						background: #f0f0f0;
+						display: flex;
+						justify-content: center;
+						align-items: center;
+						min-height: 100vh;
+					}
+					
+					.id-card {
+						box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+					}
+				}
+				
+				@media print {
+					body {
+						background: white !important;
+					}
+					
+					.id-card {
+						box-shadow: none !important;
+						border: 2px solid #000 !important;
+					}
+				}
+			</style>
+		</head>
+		<body>
+			<div class="id-card">
+				<div class="header">
+					<h2>MEMBERSHIP ID CARD</h2>
+					<p>Valid Until: 12/${new Date().getFullYear() + 1}</p>
+				</div>
+				
+				<div class="content">
+					<div class="photo-container">
+						${
+							user.pic
+								? `<img src="${user.pic}" alt="Photo" class="photo-img" onerror="this.style.display='none'; this.parentElement.innerHTML='No Photo Available'; this.parentElement.style.fontSize='9px'; this.parentElement.style.color='#666';">`
+								: "No Photo Available"
+						}
+					</div>
+					
+					<div class="details">
+						<div class="detail-row">
+							<span class="label">Full Name:</span>
+							<span class="value">${userFullName}</span>
+						</div>
+						
+						<div class="detail-row">
+							<span class="label">ID Number:</span>
+							<span class="value id-number">${user.membership_code}</span>
+						</div>
+						
+						<div class="detail-row">
+							<span class="label">Gender:</span>
+							<span class="value">${user.gender}</span>
+						</div>
+						
+						<div class="detail-row">
+							<span class="label">Date of Birth:</span>
+							<span class="value">${userDOB}</span>
+						</div>
+						
+						<div class="detail-row">
+							<span class="label">Status:</span>
+							<span class="value">
+								<span class="status">${user.is_active ? "ACTIVE" : "INACTIVE"}</span>
+							</span>
+						</div>
+					</div>
+				</div>
+				
+				<div class="footer">
+					<div class="barcode">${user.membership_code}</div>
+					<div style="font-size: 7px; color: #666;">Issued: ${new Date().toLocaleDateString()}</div>
+				</div>
+				
+				<div class="print-info">
+					Printed: ${today}
+				</div>
+			</div>
+			
+			<script>
+				// Auto-print after a short delay
+				setTimeout(() => {
+					window.print();
+					
+					// Close window after print
+					setTimeout(() => {
+						window.close();
+					}, 500);
+				}, 500);
+			</script>
+		</body>
+		</html>
+	`;
+
+		printWindow.document.write(content);
+		printWindow.document.close();
+	};
+
 	const columns: ColumnDef<EndUser>[] = [
 		{
 			id: "select",
@@ -383,19 +644,28 @@ const EndUserTable = () => {
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
 						<Link href={`/beneficiary-management/${user.id}`}>
-							<Button className="border border-[#E8E8E8]">View Details</Button>
+							<Button className="border border-[#E8E8E8] text-xs">
+								View Details
+							</Button>
 						</Link>
 
 						<Button
-							className="border border-[#E8E8E8]"
+							className="border border-[#E8E8E8] text-xs"
 							onClick={() => openEditModal(row)}>
 							Edit
 						</Button>
 
 						<Button
-							className="border border-[#E8E8E8]"
+							className="border border-[#E8E8E8] text-xs bg-blue-50 hover:bg-blue-100 text-blue-600"
+							onClick={() => printIDCard(user)}>
+							<Printer className="h-4 w-4 mr-1" />
+							Print ID
+						</Button>
+
+						<Button
+							className="border border-[#E8E8E8] text-xs"
 							onClick={() => openDeleteModal(row)}>
-							<IconTrash color="#6B7280" />
+							<IconTrash className="h-4 w-4" />
 						</Button>
 					</div>
 				);

@@ -33,7 +33,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport, IconTrash } from "@tabler/icons-react";
+import { IconFileExport, IconPrinter } from "@tabler/icons-react";
 import axios from "axios";
 import {
 	ChevronLeft,
@@ -171,6 +171,245 @@ export function EndUserDataTable<TData, TValue>({
 		return buf;
 	};
 
+	// Bulk print ID cards for selected users (max 10)
+	const bulkPrintIDCards = () => {
+		const selectedRows = Object.keys(rowSelection).map(
+			(index) => tableData[parseInt(index)] as EndUser
+		);
+
+		if (selectedRows.length === 0) {
+			toast.warn("Please select users to print ID cards");
+			return;
+		}
+
+		if (selectedRows.length > 10) {
+			toast.warn("Maximum 10 ID cards can be printed at once");
+			return;
+		}
+
+		const getFullName = (user: EndUser) => {
+			return `${user.first_name} ${
+				user.middle_name ? user.middle_name + " " : ""
+			}${user.last_name}`.trim();
+		};
+
+		const printWindow = window.open("", "_blank");
+		if (!printWindow) return;
+
+		// Generate HTML for A4 page with 10 ID cards (2 columns × 5 rows)
+		let cardsHTML = "";
+		selectedRows.forEach((user, index) => {
+			const userFullName = getFullName(user);
+			const userDOB = user.dob
+				? new Date(user.dob).toLocaleDateString()
+				: "N/A";
+
+			cardsHTML += `
+				<div class="id-card" style="page-break-inside: avoid;">
+					<div class="id-card-header">
+						<div style="font-weight: bold; font-size: 10px; color: #1e40af;">ID CARD</div>
+						<div style="text-align: center; flex: 2;">
+							<h3 style="margin: 0; font-size: 11px; font-weight: bold; color: #1e40af;">MEMBERSHIP CARD</h3>
+							<p style="margin: 0; font-size: 8px; color: #666;">Valid Until: ${
+								new Date().getFullYear() + 1
+							}/12/31</p>
+						</div>
+					</div>
+					
+					<div class="id-card-content">
+						<div class="photo-section">
+							${
+								user.pic
+									? `<img src="${user.pic}" alt="${userFullName}" style="width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #666;\\'>No Photo</div>';">`
+									: '<div style="width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #666;">No Photo</div>'
+							}
+						</div>
+						
+						<div class="details-section">
+							<div class="detail-row">
+								<span class="detail-label">Name:</span>
+								<span class="detail-value">${userFullName}</span>
+							</div>
+							
+							<div class="detail-row">
+								<span class="detail-label">ID No:</span>
+								<span class="detail-value id-number">${user.membership_code}</span>
+							</div>
+							
+							<div class="detail-row">
+								<span class="detail-label">Gender:</span>
+								<span class="detail-value">${user.gender}</span>
+							</div>
+							
+							<div class="detail-row">
+								<span class="detail-label">DOB:</span>
+								<span class="detail-value">${userDOB}</span>
+							</div>
+							
+							<div class="detail-row">
+								<span class="detail-label">Status:</span>
+								<span class="detail-value">
+									<span style="color: ${
+										user.is_active ? "#fff" : "#fff"
+									}; font-weight: bold; background: ${
+				user.is_active ? "#10b981" : "#ef4444"
+			}; padding: 2px 5px; border-radius: 3px; font-size: 8px;">
+										${user.is_active ? "ACTIVE" : "INACTIVE"}
+									</span>
+								</span>
+							</div>
+						</div>
+					</div>
+					
+					<div class="id-card-footer">
+						<div class="barcode" style="font-family: \'Courier New\', monospace; font-size: 12px; text-align: center; background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">
+							${user.membership_code}
+						</div>
+						
+					</div>
+				</div>
+			`;
+		});
+
+		const content = `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<title>Print ID Cards</title>
+				<style>
+					@page {
+						size: A4;
+						margin: 10mm;
+					}
+					
+					@media print {
+						body {
+							margin: 0;
+							padding: 0;
+							font-family: Arial, sans-serif;
+						}
+						
+						.a4-page {
+							width: 210mm;
+							height: 297mm;
+							display: grid;
+							grid-template-columns: repeat(2, 85mm);
+							grid-template-rows: repeat(5, 50mm);
+							gap: 5mm;
+							justify-content: center;
+							align-content: center;
+							page-break-after: always;
+						}
+						
+						.id-card {
+							width: 85mm;
+							height: 50mm;
+							border: 2px solid #000;
+							border-radius: 5px;
+							padding: 2mm;
+							box-sizing: border-box;
+							background: white;
+							page-break-inside: avoid;
+							break-inside: avoid;
+						}
+						
+						.id-card-header {
+							display: flex;
+							justify-content: space-between;
+							align-items: center;
+							border-bottom: 1px solid #ccc;
+							padding-bottom: 1mm;
+							margin-bottom: 2mm;
+						}
+						
+						.id-card-content {
+							display: flex;
+							gap: 3mm;
+							margin: 1mm 0;
+						}
+						
+						.photo-section {
+							flex: 1;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+						}
+						
+						.details-section {
+							flex: 2;
+						}
+						
+						.detail-row {
+							display: flex;
+							margin-bottom: 1mm;
+							font-size: 8px;
+						}
+						
+						.detail-label {
+							font-weight: bold;
+							width: 15mm;
+							color: #333;
+						}
+						
+						.detail-value {
+							flex: 1;
+							color: #555;
+							text-transform: capitalize;
+						}
+						
+						.id-number {
+							font-family: 'Courier New', monospace;
+							font-weight: bold;
+							font-size: 9px;
+							color: #1e40af;
+						}
+						
+						.id-card-footer {
+							border-top: 1px solid #ccc;
+							margin-top: 1mm;
+							padding-top: 1mm;
+							display: flex;
+							justify-content: space-between;
+							align-items: center;
+						}
+						
+						.barcode {
+							font-family: 'Courier New', monospace;
+							font-size: 10px;
+							text-align: center;
+							background: #f5f5f5;
+							padding: 1px 3px;
+							border-radius: 2px;
+							flex: 1;
+						}
+					}
+				</style>
+			</head>
+			<body>
+				<div class="a4-page">
+					${cardsHTML}
+				</div>
+				<div style="text-align: center; font-size: 10px; margin-top: 10mm; color: #666;">
+					Printed on: ${new Date().toLocaleString()} | Total Cards: ${selectedRows.length}
+				</div>
+				<script>
+					window.onload = function() {
+						setTimeout(() => {
+							window.print();
+							setTimeout(() => {
+								window.close();
+							}, 100);
+						}, 500);
+					}
+				</script>
+			</body>
+			</html>
+		`;
+
+		printWindow.document.write(content);
+		printWindow.document.close();
+	};
+
 	const bulkDeleteStaff = async () => {
 		try {
 			const session = await getSession();
@@ -252,7 +491,7 @@ export function EndUserDataTable<TData, TValue>({
 	return (
 		<div className="rounded-lg border-[1px] py-0">
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
-				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
+				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2 w-full sm:w-[30%]">
 					{["View All", "Active", "Inactive"].map((status, index, arr) => (
 						<p
 							key={status}
@@ -268,21 +507,30 @@ export function EndUserDataTable<TData, TValue>({
 						</p>
 					))}
 				</div>
-				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
+				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full sm:w-[70%] ">
 					<Input
 						placeholder="Search User..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
-						className="focus:border-none bg-[#F9FAFB]"
+						className="focus:border-none bg-[#F9FAFB] w-full"
 					/>
-					<Button
-						className="border-[#E8E8E8] border-[1px] bg-white"
-						onClick={bulkDeleteStaff}>
-						<IconTrash /> Delete
-					</Button>
+
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
+
+					{/* Bulk Print Button */}
+					<Button
+						className="bg-blue-600 hover:bg-blue-700 text-white font-inter"
+						onClick={bulkPrintIDCards}
+						disabled={
+							Object.keys(rowSelection).length === 0 ||
+							Object.keys(rowSelection).length > 10
+						}>
+						<IconPrinter className="mr-2 h-4 w-4" />
+						Print IDs ({Object.keys(rowSelection).length})
+					</Button>
+
 					<Button
 						className="bg-secondary-1 border-[1px] border-[#173C3D] text-white font-inter cborder"
 						onClick={handleExport}>
