@@ -338,12 +338,6 @@ function Overview() {
 										{beneficiary.residential_ward}
 									</p>
 								</div>
-								<div className="flex flex-row justify-between items-center gap-2 w-full sm:w-[33%] border rounded-lg p-3">
-									<p className="text-xs text-[#6B7280]">Residential Origin</p>
-									<p className="text-sm text-dark-1 capitalize">
-										{beneficiary.ward_of_origin}
-									</p>
-								</div>
 							</div>
 						</div>
 					</div>
@@ -369,6 +363,14 @@ function Overview() {
 									<p className="text-xs text-[#6B7280]">Nationality</p>
 									<p className="text-sm text-dark-1 capitalize">
 										{beneficiary.nationality}
+									</p>
+								</div>
+							</div>
+							<div className="flex flex-row justify-start gap-5 items-start">
+								<div className="flex flex-row justify-between items-center gap-2 w-full sm:w-[33%] border rounded-lg p-3">
+									<p className="text-xs text-[#6B7280]">Ward Origin</p>
+									<p className="text-sm text-dark-1 capitalize">
+										{beneficiary.ward_of_origin}
 									</p>
 								</div>
 							</div>
