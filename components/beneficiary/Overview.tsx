@@ -40,6 +40,8 @@ interface Beneficiary {
 	is_active: boolean;
 	created_at: string;
 	updated_at: string;
+	ward_of_origin: string;
+	residential_ward: string;
 }
 
 interface ApiResponse {
@@ -325,6 +327,21 @@ function Overview() {
 									<p className="text-xs text-[#6B7280]">Local Government</p>
 									<p className="text-sm text-dark-1 capitalize">
 										{beneficiary.residential_lga}
+									</p>
+								</div>
+							</div>
+
+							<div className="flex flex-row justify-start gap-5 items-start">
+								<div className="flex flex-row justify-between items-center gap-2 w-full sm:w-[33%] border rounded-lg p-3">
+									<p className="text-xs text-[#6B7280]">Residential Ward</p>
+									<p className="text-sm text-dark-1 capitalize">
+										{beneficiary.residential_ward}
+									</p>
+								</div>
+								<div className="flex flex-row justify-between items-center gap-2 w-full sm:w-[33%] border rounded-lg p-3">
+									<p className="text-xs text-[#6B7280]">Residential Origin</p>
+									<p className="text-sm text-dark-1 capitalize">
+										{beneficiary.ward_of_origin}
 									</p>
 								</div>
 							</div>
