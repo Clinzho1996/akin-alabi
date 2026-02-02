@@ -72,9 +72,11 @@ const BenefitTable = () => {
 	});
 	const [pagination, setPagination] = useState({
 		page: 1,
-		limit: 50,
+		limit: 10, // Default page size
 		total: 0,
 		pages: 1,
+		hasNextPage: false,
+		hasPrevPage: false,
 	});
 
 	const openEditModal = (row: Row<Benefit>) => {
@@ -122,12 +124,12 @@ const BenefitTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
 				toast.success("Benefit updated successfully.");
-				fetchBenefits();
+				fetchBenefits(pagination.page, pagination.limit);
 				closeEditModal();
 			}
 		} catch (error) {
@@ -161,12 +163,12 @@ const BenefitTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
 				toast.success(response.data.message);
-				fetchBenefits();
+				fetchBenefits(pagination.page, pagination.limit);
 				closeStatusModal();
 			}
 		} catch (error) {
@@ -186,7 +188,7 @@ const BenefitTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchBenefits = async (page = 1, limit = 50) => {
+	const fetchBenefits = async (page = 1, limit = 10) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -205,24 +207,29 @@ const BenefitTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
+
+			console.log("API Response:", response.data);
 
 			if (response.data.status === "success") {
 				setTableData(response.data.data);
 
 				if (response.data.pagination) {
 					const paginationData = response.data.pagination;
+
+					// Calculate total pages based on total items and limit
+					const totalPages = Math.ceil(paginationData.total / limit);
+
 					setPagination({
 						page: paginationData.current_page,
-						limit: 50, // You might want to get this from API if available
+						limit: limit,
 						total: paginationData.total,
-						pages: Math.ceil(paginationData.total / 50), // Adjust based on your limit
+						pages: totalPages,
+						hasNextPage: !!paginationData.next_page_url,
+						hasPrevPage: !!paginationData.prev_page_url,
 					});
 				}
-
-				console.log("Benefits Data:", response.data.data);
-				console.log("Pagination:", response.data.pagination);
 			}
 		} catch (error) {
 			console.error("Error fetching benefits data:", error);
@@ -233,7 +240,7 @@ const BenefitTable = () => {
 	};
 
 	useEffect(() => {
-		fetchBenefits(1, 50);
+		fetchBenefits(1, 10);
 	}, []);
 
 	const deleteBenefit = async (id: string) => {
@@ -254,9 +261,8 @@ const BenefitTable = () => {
 			});
 
 			if (response.data.status === "success") {
-				setTableData((prevData) =>
-					prevData.filter((benefit) => benefit.id !== id)
-				);
+				// Refresh current page instead of filtering locally
+				fetchBenefits(pagination.page, pagination.limit);
 				toast.success("Benefit deleted successfully.");
 			}
 		} catch (error) {
@@ -278,10 +284,10 @@ const BenefitTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const loadMoreBenefits = () => {
-		if (pagination.page < pagination.pages) {
-			fetchBenefits(pagination.page + 1, pagination.limit);
-		}
+	const handlePaginationChange = (pageIndex: number, pageSize: number) => {
+		// Convert 0-based index to 1-based for API
+		console.log("Pagination change:", pageIndex + 1, pageSize);
+		fetchBenefits(pageIndex + 1, pageSize);
 	};
 
 	const columns: ColumnDef<Benefit>[] = [
@@ -424,25 +430,15 @@ const BenefitTable = () => {
 					<BenefitDataTable
 						columns={columns}
 						data={tableData}
-						onRefresh={fetchBenefits}
+						onRefresh={() => fetchBenefits(pagination.page, pagination.limit)}
+						onPaginationChange={handlePaginationChange}
+						totalItems={pagination.total}
+						currentPage={pagination.page - 1}
+						totalPages={pagination.pages}
+						pageSize={pagination.limit}
+						hasNextPage={pagination.hasNextPage}
+						hasPrevPage={pagination.hasPrevPage}
 					/>
-					{tableData.length === 0 && !isLoading && (
-						<div className="text-center p-8 text-gray-500">
-							No benefits found.
-						</div>
-					)}
-					{pagination.page < pagination.pages && (
-						<div className="mt-4 flex justify-center">
-							<Button
-								onClick={loadMoreBenefits}
-								className="bg-primary-1 text-white"
-								disabled={isLoading}>
-								{isLoading
-									? "Loading..."
-									: `Load More (${tableData.length} of ${pagination.total})`}
-							</Button>
-						</div>
-					)}
 				</>
 			)}
 
@@ -535,7 +531,7 @@ const BenefitTable = () => {
 								? "Updating..."
 								: `Yes, ${
 										selectedRow?.is_active ? "Deactivate" : "Reactivate"
-								  }`}
+									}`}
 						</Button>
 					</div>
 				</Modal>

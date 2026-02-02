@@ -95,9 +95,11 @@ const EventTable = () => {
 	const [availableBenefits, setAvailableBenefits] = useState<any[]>([]); // Store available benefits
 	const [pagination, setPagination] = useState({
 		page: 1,
-		limit: 50,
+		limit: 10, // Changed from 50 to 10 for standard pagination
 		total: 0,
 		pages: 1,
+		hasNextPage: false,
+		hasPrevPage: false,
 	});
 
 	// Fetch available benefits for selection
@@ -178,12 +180,12 @@ const EventTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
 				toast.success("Event updated successfully.");
-				fetchEvents();
+				fetchEvents(pagination.page, pagination.limit);
 				closeEditModal();
 			}
 		} catch (error) {
@@ -213,12 +215,12 @@ const EventTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
 				toast.success("Event closed successfully.");
-				fetchEvents();
+				fetchEvents(pagination.page, pagination.limit);
 				closeCloseEventModal();
 			}
 		} catch (error) {
@@ -238,7 +240,7 @@ const EventTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchEvents = async (page = 1, limit = 50) => {
+	const fetchEvents = async (page = 1, limit = 10) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -257,24 +259,29 @@ const EventTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
+
+			console.log("Events API Response:", response.data);
 
 			if (response.data.status === "success") {
 				setTableData(response.data.data);
 
 				if (response.data.pagination) {
 					const paginationData = response.data.pagination;
+					const totalPages = Math.ceil(
+						paginationData.total / paginationData.per_page,
+					);
+
 					setPagination({
 						page: paginationData.current_page,
 						limit: paginationData.per_page,
 						total: paginationData.total,
-						pages: Math.ceil(paginationData.total / paginationData.per_page),
+						pages: totalPages,
+						hasNextPage: !!paginationData.next_page_url,
+						hasPrevPage: !!paginationData.prev_page_url,
 					});
 				}
-
-				console.log("Events Data:", response.data.data);
-				console.log("Pagination:", response.data.pagination);
 			}
 		} catch (error) {
 			console.error("Error fetching events data:", error);
@@ -285,7 +292,7 @@ const EventTable = () => {
 	};
 
 	useEffect(() => {
-		fetchEvents(1, 50);
+		fetchEvents(1, 10);
 		fetchAvailableBenefits(); // Fetch available benefits when component mounts
 	}, []);
 
@@ -307,7 +314,8 @@ const EventTable = () => {
 			});
 
 			if (response.data.status === "success") {
-				setTableData((prevData) => prevData.filter((event) => event.id !== id));
+				// Refresh current page instead of filtering locally
+				fetchEvents(pagination.page, pagination.limit);
 				toast.success("Event deleted successfully.");
 			}
 		} catch (error) {
@@ -340,7 +348,7 @@ const EventTable = () => {
 
 	const getTotalAmount = (event: Event) => {
 		const monetaryBenefits = event.benefits.filter(
-			(benefit) => benefit.type === "monetary"
+			(benefit) => benefit.type === "monetary",
 		);
 		let total = 0;
 
@@ -367,7 +375,7 @@ const EventTable = () => {
 		setEditData({
 			...editData,
 			benefit_ids: editData.benefit_ids.filter(
-				(benefitId) => benefitId !== benefitIdToRemove
+				(benefitId) => benefitId !== benefitIdToRemove,
 			),
 		});
 	};
@@ -377,10 +385,10 @@ const EventTable = () => {
 		return benefit ? benefit.name : "Unknown Benefit";
 	};
 
-	const loadMoreEvents = () => {
-		if (pagination.page < pagination.pages) {
-			fetchEvents(pagination.page + 1, pagination.limit);
-		}
+	const handlePaginationChange = (pageIndex: number, pageSize: number) => {
+		// Convert 0-based index to 1-based for API
+		console.log("Pagination change:", pageIndex + 1, pageSize);
+		fetchEvents(pageIndex + 1, pageSize);
 	};
 
 	const columns: ColumnDef<Event>[] = [
@@ -535,25 +543,15 @@ const EventTable = () => {
 					<EventDataTable
 						columns={columns}
 						data={tableData}
-						onRefresh={fetchEvents}
+						onRefresh={() => fetchEvents(pagination.page, pagination.limit)}
+						onPaginationChange={handlePaginationChange}
+						totalItems={pagination.total}
+						currentPage={pagination.page - 1}
+						totalPages={pagination.pages}
+						pageSize={pagination.limit}
+						hasNextPage={pagination.hasNextPage}
+						hasPrevPage={pagination.hasPrevPage}
 					/>
-					{tableData.length === 0 && !isLoading && (
-						<div className="text-center p-8 text-gray-500">
-							No events found.
-						</div>
-					)}
-					{pagination.page < pagination.pages && (
-						<div className="mt-4 flex justify-center">
-							<Button
-								onClick={loadMoreEvents}
-								className="bg-primary-1 text-white"
-								disabled={isLoading}>
-								{isLoading
-									? "Loading..."
-									: `Load More (${tableData.length} of ${pagination.total})`}
-							</Button>
-						</div>
-					)}
 				</>
 			)}
 

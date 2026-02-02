@@ -51,52 +51,68 @@ import { EndUser } from "./end-user-columns";
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
-}
-
-interface ApiResponse {
-	status: boolean;
-	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, any>;
+	onPaginationChange?: (pageIndex: number, pageSize: number) => void;
+	totalItems?: number;
+	currentPage?: number;
+	totalPages?: number;
+	pageSize?: number;
 }
 
 export function EndUserDataTable<TData, TValue>({
 	columns,
 	data,
+	onPaginationChange,
+	totalItems = 0,
+	currentPage = 0,
+	totalPages = 0,
+	pageSize = 10,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
+		[],
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [globalFilter, setGlobalFilter] = useState("");
-	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
-	const [isLoading, setIsLoading] = useState(false);
-	const [stats, setStats] = useState<ApiResponse | null>(null);
-
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-	// Sync `tableData` with `data` prop
+	// Track pagination state
+	const [pagination, setPagination] = useState({
+		pageIndex: currentPage,
+		pageSize: pageSize,
+	});
+
+	// Update table data when prop changes
 	useEffect(() => {
 		setTableData(data);
 	}, [data]);
 
-	// Function to filter data based on date range
+	// Update pagination when props change
+	useEffect(() => {
+		setPagination({
+			pageIndex: currentPage,
+			pageSize: pageSize,
+		});
+	}, [currentPage, pageSize]);
+
+	const handlePageChange = (pageIndex: number) => {
+		console.log("Table page change to:", pageIndex);
+		if (onPaginationChange) {
+			onPaginationChange(pageIndex, pagination.pageSize);
+		}
+	};
+
+	// Handle page size change
+	const handlePageSizeChange = (newPageSize: number) => {
+		console.log("Page size change to:", newPageSize);
+		if (onPaginationChange) {
+			onPaginationChange(0, newPageSize); // Go to first page when changing page size
+		}
+	};
+
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
 			setTableData(data); // Reset to all data
@@ -122,12 +138,12 @@ export function EndUserDataTable<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(user) => (user as any)?.is_active === true
+				(user) => (user as any)?.is_active === true,
 			);
 			setTableData(filteredData as TData[]);
 		} else if (status === "Inactive") {
 			const filteredData = data?.filter(
-				(user) => (user as any)?.is_active === false
+				(user) => (user as any)?.is_active === false,
 			);
 			setTableData(filteredData as TData[]);
 		}
@@ -171,10 +187,46 @@ export function EndUserDataTable<TData, TValue>({
 		return buf;
 	};
 
-	// Bulk print ID cards for selected users (max 10)
+	const table = useReactTable({
+		data: tableData,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getPaginationRowModel: getPaginationRowModel(),
+		onSortingChange: setSorting,
+		getSortedRowModel: getSortedRowModel(),
+		onColumnFiltersChange: setColumnFilters,
+		getFilteredRowModel: getFilteredRowModel(),
+		onColumnVisibilityChange: setColumnVisibility,
+		onRowSelectionChange: setRowSelection,
+		onGlobalFilterChange: setGlobalFilter,
+		// Use manual pagination state
+		manualPagination: !!onPaginationChange,
+		// Pass the pagination state
+		state: {
+			sorting,
+			columnFilters,
+			columnVisibility,
+			rowSelection,
+			globalFilter,
+			pagination: {
+				pageIndex: currentPage,
+				pageSize: pageSize,
+			},
+		},
+		// Row count for manual pagination
+		rowCount: totalItems,
+		// When using manual pagination, don't use the built-in pagination handlers
+		...(onPaginationChange
+			? {
+					getPaginationRowModel: undefined,
+					onPaginationChange: undefined,
+				}
+			: {}),
+	});
+
 	const bulkPrintIDCards = () => {
 		const selectedRows = Object.keys(rowSelection).map(
-			(index) => tableData[parseInt(index)] as EndUser
+			(index) => tableData[parseInt(index)] as EndUser,
 		);
 
 		if (selectedRows.length === 0) {
@@ -205,206 +257,206 @@ export function EndUserDataTable<TData, TValue>({
 				: "N/A";
 
 			cardsHTML += `
-				<div class="id-card" style="page-break-inside: avoid;">
-					<div class="id-card-header">
-						<div style="font-weight: bold; font-size: 10px; color: #1e40af;">ID CARD</div>
-						<div style="text-align: center; flex: 2;">
-							<h3 style="margin: 0; font-size: 11px; font-weight: bold; color: #1e40af;">MEMBERSHIP CARD</h3>
-							<p style="margin: 0; font-size: 8px; color: #666;">Valid Until: ${
+        <div class="id-card" style="page-break-inside: avoid;">
+          <div class="id-card-header">
+            <div style="font-weight: bold; font-size: 10px; color: #1e40af;">ID CARD</div>
+            <div style="text-align: center; flex: 2;">
+              <h3 style="margin: 0; font-size: 11px; font-weight: bold; color: #1e40af;">MEMBERSHIP CARD</h3>
+              <p style="margin: 0; font-size: 8px; color: #666;">Valid Until: ${
 								new Date().getFullYear() + 1
 							}/12/31</p>
-						</div>
-					</div>
-					
-					<div class="id-card-content">
-						<div class="photo-section">
-							${
+            </div>
+          </div>
+          
+          <div class="id-card-content">
+            <div class="photo-section">
+              ${
 								user.pic
 									? `<img src="${user.pic}" alt="${userFullName}" style="width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #666;\\'>No Photo</div>';">`
 									: '<div style="width: 25mm; height: 25mm; border: 1px solid #ccc; border-radius: 2mm; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #666;">No Photo</div>'
 							}
-						</div>
-						
-						<div class="details-section">
-							<div class="detail-row">
-								<span class="detail-label">Name:</span>
-								<span class="detail-value">${userFullName}</span>
-							</div>
-							
-							<div class="detail-row">
-								<span class="detail-label">ID No:</span>
-								<span class="detail-value id-number">${user.membership_code}</span>
-							</div>
-							
-							<div class="detail-row">
-								<span class="detail-label">Gender:</span>
-								<span class="detail-value">${user.gender}</span>
-							</div>
-							
-							<div class="detail-row">
-								<span class="detail-label">DOB:</span>
-								<span class="detail-value">${userDOB}</span>
-							</div>
-							
-							<div class="detail-row">
-								<span class="detail-label">Status:</span>
-								<span class="detail-value">
-									<span style="color: ${
+            </div>
+            
+            <div class="details-section">
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">${userFullName}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">ID No:</span>
+                <span class="detail-value id-number">${user.membership_code}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Gender:</span>
+                <span class="detail-value">${user.gender}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">DOB:</span>
+                <span class="detail-value">${userDOB}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Status:</span>
+                <span class="detail-value">
+                  <span style="color: ${
 										user.is_active ? "#fff" : "#fff"
 									}; font-weight: bold; background: ${
-				user.is_active ? "#10b981" : "#ef4444"
-			}; padding: 2px 5px; border-radius: 3px; font-size: 8px;">
-										${user.is_active ? "ACTIVE" : "INACTIVE"}
-									</span>
-								</span>
-							</div>
-						</div>
-					</div>
-					
-					<div class="id-card-footer">
-						<div class="barcode" style="font-family: \'Courier New\', monospace; font-size: 12px; text-align: center; background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">
-							${user.membership_code}
-						</div>
-						
-					</div>
-				</div>
-			`;
+										user.is_active ? "#10b981" : "#ef4444"
+									}; padding: 2px 5px; border-radius: 3px; font-size: 8px;">
+                    ${user.is_active ? "ACTIVE" : "INACTIVE"}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="id-card-footer">
+            <div class="barcode" style="font-family: \'Courier New\', monospace; font-size: 12px; text-align: center; background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">
+              ${user.membership_code}
+            </div>
+            
+          </div>
+        </div>
+      `;
 		});
 
 		const content = `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<title>Print ID Cards</title>
-				<style>
-					@page {
-						size: A4;
-						margin: 10mm;
-					}
-					
-					@media print {
-						body {
-							margin: 0;
-							padding: 0;
-							font-family: Arial, sans-serif;
-						}
-						
-						.a4-page {
-							width: 210mm;
-							height: 297mm;
-							display: grid;
-							grid-template-columns: repeat(2, 85mm);
-							grid-template-rows: repeat(5, 50mm);
-							gap: 5mm;
-							justify-content: center;
-							align-content: center;
-							page-break-after: always;
-						}
-						
-						.id-card {
-							width: 85mm;
-							height: 50mm;
-							border: 2px solid #000;
-							border-radius: 5px;
-							padding: 2mm;
-							box-sizing: border-box;
-							background: white;
-							page-break-inside: avoid;
-							break-inside: avoid;
-						}
-						
-						.id-card-header {
-							display: flex;
-							justify-content: space-between;
-							align-items: center;
-							border-bottom: 1px solid #ccc;
-							padding-bottom: 1mm;
-							margin-bottom: 2mm;
-						}
-						
-						.id-card-content {
-							display: flex;
-							gap: 3mm;
-							margin: 1mm 0;
-						}
-						
-						.photo-section {
-							flex: 1;
-							display: flex;
-							align-items: center;
-							justify-content: center;
-						}
-						
-						.details-section {
-							flex: 2;
-						}
-						
-						.detail-row {
-							display: flex;
-							margin-bottom: 1mm;
-							font-size: 8px;
-						}
-						
-						.detail-label {
-							font-weight: bold;
-							width: 15mm;
-							color: #333;
-						}
-						
-						.detail-value {
-							flex: 1;
-							color: #555;
-							text-transform: capitalize;
-						}
-						
-						.id-number {
-							font-family: 'Courier New', monospace;
-							font-weight: bold;
-							font-size: 9px;
-							color: #1e40af;
-						}
-						
-						.id-card-footer {
-							border-top: 1px solid #ccc;
-							margin-top: 1mm;
-							padding-top: 1mm;
-							display: flex;
-							justify-content: space-between;
-							align-items: center;
-						}
-						
-						.barcode {
-							font-family: 'Courier New', monospace;
-							font-size: 10px;
-							text-align: center;
-							background: #f5f5f5;
-							padding: 1px 3px;
-							border-radius: 2px;
-							flex: 1;
-						}
-					}
-				</style>
-			</head>
-			<body>
-				<div class="a4-page">
-					${cardsHTML}
-				</div>
-				<div style="text-align: center; font-size: 10px; margin-top: 10mm; color: #666;">
-					Printed on: ${new Date().toLocaleString()} | Total Cards: ${selectedRows.length}
-				</div>
-				<script>
-					window.onload = function() {
-						setTimeout(() => {
-							window.print();
-							setTimeout(() => {
-								window.close();
-							}, 100);
-						}, 500);
-					}
-				</script>
-			</body>
-			</html>
-		`;
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Print ID Cards</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          
+          @media print {
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
+            }
+            
+            .a4-page {
+              width: 210mm;
+              height: 297mm;
+              display: grid;
+              grid-template-columns: repeat(2, 85mm);
+              grid-template-rows: repeat(5, 50mm);
+              gap: 5mm;
+              justify-content: center;
+              align-content: center;
+              page-break-after: always;
+            }
+            
+            .id-card {
+              width: 85mm;
+              height: 50mm;
+              border: 2px solid #000;
+              border-radius: 5px;
+              padding: 2mm;
+              box-sizing: border-box;
+              background: white;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            .id-card-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px solid #ccc;
+              padding-bottom: 1mm;
+              margin-bottom: 2mm;
+            }
+            
+            .id-card-content {
+              display: flex;
+              gap: 3mm;
+              margin: 1mm 0;
+            }
+            
+            .photo-section {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            
+            .details-section {
+              flex: 2;
+            }
+            
+            .detail-row {
+              display: flex;
+              margin-bottom: 1mm;
+              font-size: 8px;
+            }
+            
+            .detail-label {
+              font-weight: bold;
+              width: 15mm;
+              color: #333;
+            }
+            
+            .detail-value {
+              flex: 1;
+              color: #555;
+              text-transform: capitalize;
+            }
+            
+            .id-number {
+              font-family: 'Courier New', monospace;
+              font-weight: bold;
+              font-size: 9px;
+              color: #1e40af;
+            }
+            
+            .id-card-footer {
+              border-top: 1px solid #ccc;
+              margin-top: 1mm;
+              padding-top: 1mm;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            
+            .barcode {
+              font-family: 'Courier New', monospace;
+              font-size: 10px;
+              text-align: center;
+              background: #f5f5f5;
+              padding: 1px 3px;
+              border-radius: 2px;
+              flex: 1;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="a4-page">
+          ${cardsHTML}
+        </div>
+        <div style="text-align: center; font-size: 10px; margin-top: 10mm; color: #666;">
+          Printed on: ${new Date().toLocaleString()} | Total Cards: ${selectedRows.length}
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(() => {
+              window.print();
+              setTimeout(() => {
+                window.close();
+              }, 100);
+            }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
 
 		printWindow.document.write(content);
 		printWindow.document.close();
@@ -422,7 +474,7 @@ export function EndUserDataTable<TData, TValue>({
 			}
 
 			const selectedIds = Object.keys(rowSelection).map(
-				(index) => (tableData[parseInt(index)] as any)?.id
+				(index) => (tableData[parseInt(index)] as any)?.id,
 			);
 
 			if (selectedIds.length === 0) {
@@ -440,7 +492,7 @@ export function EndUserDataTable<TData, TValue>({
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.status === 200) {
@@ -448,7 +500,7 @@ export function EndUserDataTable<TData, TValue>({
 
 				// Update the table data by filtering out the deleted staff
 				setTableData((prevData) =>
-					prevData.filter((staff) => !selectedIds.includes((staff as any).id))
+					prevData.filter((staff) => !selectedIds.includes((staff as any).id)),
 				);
 
 				// Clear the selection
@@ -459,7 +511,7 @@ export function EndUserDataTable<TData, TValue>({
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to delete staff. Please try again."
+						"Failed to delete staff. Please try again.",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -467,26 +519,9 @@ export function EndUserDataTable<TData, TValue>({
 		}
 	};
 
-	const table = useReactTable({
-		data: tableData,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		onSortingChange: setSorting,
-		getSortedRowModel: getSortedRowModel(),
-		onColumnFiltersChange: setColumnFilters,
-		getFilteredRowModel: getFilteredRowModel(),
-		onColumnVisibilityChange: setColumnVisibility,
-		onRowSelectionChange: setRowSelection,
-		onGlobalFilterChange: setGlobalFilter,
-		state: {
-			sorting,
-			columnFilters,
-			columnVisibility,
-			rowSelection,
-			globalFilter,
-		},
-	});
+	// Calculate if next/previous buttons should be enabled
+	const canPreviousPage = currentPage > 0;
+	const canNextPage = currentPage < totalPages - 1;
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
@@ -500,8 +535,8 @@ export function EndUserDataTable<TData, TValue>({
 									? "bg-primary-5 text-dark-1"
 									: "text-dark-1"
 							} 
-			${index === 0 ? "rounded-l-lg firstRound" : ""} 
-			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
+            ${index === 0 ? "rounded-l-lg firstRound" : ""} 
+            ${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
 							onClick={() => handleStatusFilter(status)}>
 							{status}
 						</p>
@@ -550,8 +585,8 @@ export function EndUserDataTable<TData, TValue>({
 											? null
 											: flexRender(
 													header.column.columnDef.header,
-													header.getContext()
-											  )}
+													header.getContext(),
+												)}
 									</TableHead>
 								);
 							})}
@@ -591,58 +626,55 @@ export function EndUserDataTable<TData, TValue>({
 					<div className="flex items-center space-x-4 gap-2">
 						<p className="text-xs text-primary-6 font-medium">Rows per page</p>
 						<Select
-							value={`${table.getState().pagination.pageSize}`}
+							value={`${pageSize}`}
 							onValueChange={(value) => {
-								table.setPageSize(Number(value));
+								handlePageSizeChange(Number(value));
 							}}>
 							<SelectTrigger className="h-8 w-[70px] bg-white z-10">
-								<SelectValue
-									placeholder={table.getState().pagination.pageSize}
-								/>
+								<SelectValue placeholder={pageSize} />
 							</SelectTrigger>
 							<SelectContent side="top" className="bg-white">
-								{[5, 10, 20, 30, 40, 50].map((pageSize) => (
-									<SelectItem key={pageSize} value={`${pageSize}`}>
-										{pageSize}
+								{[5, 10, 20, 30, 40, 50].map((pageSizeOption) => (
+									<SelectItem key={pageSizeOption} value={`${pageSizeOption}`}>
+										{pageSizeOption}
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
 					<div className="flex w-[100px] items-center justify-center font-medium text-xs text-primary-6">
-						{table.getState().pagination.pageIndex + 1} of{" "}
-						{table.getPageCount()} pages
+						{currentPage + 1} of {Math.max(totalPages, 1)} pages
 					</div>
 					<div className="flex items-center space-x-5 gap-2">
 						<Button
 							variant="outline"
 							className="hidden h-8 w-8 p-0 lg:flex"
-							onClick={() => table.setPageIndex(0)}
-							disabled={!table.getCanPreviousPage()}>
+							onClick={() => handlePageChange(0)}
+							disabled={!canPreviousPage}>
 							<span className="sr-only">Go to first page</span>
 							<ChevronsLeft />
 						</Button>
 						<Button
 							variant="outline"
 							className="h-8 w-8 p-0"
-							onClick={() => table.previousPage()}
-							disabled={!table.getCanPreviousPage()}>
+							onClick={() => handlePageChange(currentPage - 1)}
+							disabled={!canPreviousPage}>
 							<span className="sr-only">Go to previous page</span>
 							<ChevronLeft />
 						</Button>
 						<Button
 							variant="outline"
 							className="h-8 w-8 p-0"
-							onClick={() => table.nextPage()}
-							disabled={!table.getCanNextPage()}>
+							onClick={() => handlePageChange(currentPage + 1)}
+							disabled={!canNextPage}>
 							<span className="sr-only">Go to next page</span>
 							<ChevronRight />
 						</Button>
 						<Button
 							variant="outline"
 							className="hidden h-8 w-8 p-0 lg:flex"
-							onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-							disabled={!table.getCanNextPage()}>
+							onClick={() => handlePageChange(totalPages - 1)}
+							disabled={!canNextPage}>
 							<span className="sr-only">Go to last page</span>
 							<ChevronsRight />
 						</Button>

@@ -6,7 +6,6 @@ import {
 	flexRender,
 	getCoreRowModel,
 	getFilteredRowModel,
-	getPaginationRowModel,
 	getSortedRowModel,
 	RowSelectionState,
 	SortingState,
@@ -46,30 +45,18 @@ import { getSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
-import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
-	onRefresh?: () => void; // Add callback prop for refreshing data
-}
-
-interface ApiResponse {
-	status: boolean;
-	message: string;
-	data: EndUser[];
-	overview: {
-		total: number;
-		disable: number;
-		active: number;
-	};
-	pagination: {
-		total: number;
-		page: number;
-		limit: number;
-		pages: number;
-	};
-	filters: Record<string, any>;
+	onRefresh?: () => void;
+	onPaginationChange?: (pageIndex: number, pageSize: number) => void;
+	totalItems?: number;
+	currentPage?: number;
+	totalPages?: number;
+	pageSize?: number;
+	hasNextPage?: boolean;
+	hasPrevPage?: boolean;
 }
 
 interface CreateBenefitData {
@@ -83,10 +70,17 @@ export function BenefitDataTable<TData, TValue>({
 	columns,
 	data,
 	onRefresh,
+	onPaginationChange,
+	totalItems = 0,
+	currentPage = 0,
+	totalPages = 0,
+	pageSize = 10,
+	hasNextPage = false,
+	hasPrevPage = false,
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
+		[],
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
@@ -151,7 +145,7 @@ export function BenefitDataTable<TData, TValue>({
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
@@ -168,7 +162,7 @@ export function BenefitDataTable<TData, TValue>({
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to create benefit. Please try again."
+						"Failed to create benefit. Please try again.",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -204,14 +198,29 @@ export function BenefitDataTable<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else if (status === "Active") {
 			const filteredData = data?.filter(
-				(user) => (user as any)?.is_active === true
+				(user) => (user as any)?.is_active === true,
 			);
 			setTableData(filteredData as TData[]);
 		} else if (status === "Inactive") {
 			const filteredData = data?.filter(
-				(user) => (user as any)?.is_active === false
+				(user) => (user as any)?.is_active === false,
 			);
 			setTableData(filteredData as TData[]);
+		}
+	};
+
+	const handlePageChange = (pageIndex: number) => {
+		console.log("Table page change to:", pageIndex);
+		if (onPaginationChange) {
+			onPaginationChange(pageIndex, pageSize);
+		}
+	};
+
+	// Handle page size change
+	const handlePageSizeChange = (newPageSize: number) => {
+		console.log("Page size change to:", newPageSize);
+		if (onPaginationChange) {
+			onPaginationChange(0, newPageSize); // Go to first page when changing page size
 		}
 	};
 
@@ -219,7 +228,6 @@ export function BenefitDataTable<TData, TValue>({
 		data: tableData,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(),
 		onColumnFiltersChange: setColumnFilters,
@@ -227,14 +235,34 @@ export function BenefitDataTable<TData, TValue>({
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
 		onGlobalFilterChange: setGlobalFilter,
+		// Use manual pagination state
+		manualPagination: !!onPaginationChange,
+		// Pass the pagination state
 		state: {
 			sorting,
 			columnFilters,
 			columnVisibility,
 			rowSelection,
 			globalFilter,
+			pagination: {
+				pageIndex: currentPage,
+				pageSize: pageSize,
+			},
 		},
+		// Row count for manual pagination
+		rowCount: totalItems,
+		// When using manual pagination, don't use the built-in pagination handlers
+		...(onPaginationChange
+			? {
+					getPaginationRowModel: undefined,
+					onPaginationChange: undefined,
+				}
+			: {}),
 	});
+
+	// Calculate if next/previous buttons should be enabled using API's next_page_url and prev_page_url
+	const canPreviousPage = hasPrevPage;
+	const canNextPage = hasNextPage;
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
@@ -340,8 +368,8 @@ export function BenefitDataTable<TData, TValue>({
 											? null
 											: flexRender(
 													header.column.columnDef.header,
-													header.getContext()
-											  )}
+													header.getContext(),
+												)}
 									</TableHead>
 								);
 							})}
@@ -381,58 +409,55 @@ export function BenefitDataTable<TData, TValue>({
 					<div className="flex items-center space-x-4 gap-2">
 						<p className="text-xs text-primary-6 font-medium">Rows per page</p>
 						<Select
-							value={`${table.getState().pagination.pageSize}`}
+							value={`${pageSize}`}
 							onValueChange={(value) => {
-								table.setPageSize(Number(value));
+								handlePageSizeChange(Number(value));
 							}}>
 							<SelectTrigger className="h-8 w-[70px] bg-white z-10">
-								<SelectValue
-									placeholder={table.getState().pagination.pageSize}
-								/>
+								<SelectValue placeholder={pageSize} />
 							</SelectTrigger>
 							<SelectContent side="top" className="bg-white">
-								{[5, 10, 20, 30, 40, 50].map((pageSize) => (
-									<SelectItem key={pageSize} value={`${pageSize}`}>
-										{pageSize}
+								{[5, 10, 20, 30, 40, 50].map((pageSizeOption) => (
+									<SelectItem key={pageSizeOption} value={`${pageSizeOption}`}>
+										{pageSizeOption}
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
 					<div className="flex w-[100px] items-center justify-center font-medium text-xs text-primary-6">
-						{table.getState().pagination.pageIndex + 1} of{" "}
-						{table.getPageCount()} pages
+						{currentPage + 1} of {Math.max(totalPages, 1)} pages
 					</div>
 					<div className="flex items-center space-x-5 gap-2">
 						<Button
 							variant="outline"
 							className="hidden h-8 w-8 p-0 lg:flex"
-							onClick={() => table.setPageIndex(0)}
-							disabled={!table.getCanPreviousPage()}>
+							onClick={() => handlePageChange(0)}
+							disabled={!hasPrevPage}>
 							<span className="sr-only">Go to first page</span>
 							<ChevronsLeft />
 						</Button>
 						<Button
 							variant="outline"
 							className="h-8 w-8 p-0"
-							onClick={() => table.previousPage()}
-							disabled={!table.getCanPreviousPage()}>
+							onClick={() => handlePageChange(currentPage - 1)}
+							disabled={!hasPrevPage}>
 							<span className="sr-only">Go to previous page</span>
 							<ChevronLeft />
 						</Button>
 						<Button
 							variant="outline"
 							className="h-8 w-8 p-0"
-							onClick={() => table.nextPage()}
-							disabled={!table.getCanNextPage()}>
+							onClick={() => handlePageChange(currentPage + 1)}
+							disabled={!hasNextPage}>
 							<span className="sr-only">Go to next page</span>
 							<ChevronRight />
 						</Button>
 						<Button
 							variant="outline"
 							className="hidden h-8 w-8 p-0 lg:flex"
-							onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-							disabled={!table.getCanNextPage()}>
+							onClick={() => handlePageChange(totalPages - 1)}
+							disabled={!hasNextPage}>
 							<span className="sr-only">Go to last page</span>
 							<ChevronsRight />
 						</Button>

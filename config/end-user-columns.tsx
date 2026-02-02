@@ -20,7 +20,7 @@ import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { EndUserDataTable } from "./end-user-table";
 
@@ -63,10 +63,11 @@ interface ApiResponse {
 	message: string;
 	data: EndUser[];
 	pagination?: {
+		current_page: number;
+		next_page_url: string | null;
+		prev_page_url: string | null;
 		total: number;
-		page: number;
-		limit: number;
-		pages: number;
+		per_page: number;
 	};
 }
 
@@ -92,6 +93,13 @@ const EndUserTable = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<EndUser[]>([]);
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
+	const [serverPagination, setServerPagination] = useState({
+		page: 1,
+		limit: 10,
+		total: 0,
+		pages: 1,
+	});
+
 	const [editData, setEditData] = useState<EditData>({
 		id: "",
 		first_name: "",
@@ -100,14 +108,6 @@ const EndUserTable = () => {
 		gender: "male",
 		dob: "",
 	});
-	const [pagination, setPagination] = useState({
-		page: 1,
-		limit: 50,
-		total: 0,
-		pages: 1,
-	});
-	const [userToPrint, setUserToPrint] = useState<EndUser | null>(null);
-	const printRef = useRef<HTMLDivElement>(null);
 
 	const openEditModal = (row: Row<EndUser>) => {
 		const user = row.original;
@@ -151,12 +151,12 @@ const EndUserTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status === "success") {
 				toast.success("User updated successfully.");
-				fetchUsers();
+				fetchUsers(serverPagination.page, serverPagination.limit);
 				closeEditModal();
 			}
 		} catch (error) {
@@ -176,7 +176,7 @@ const EndUserTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchUsers = async (page = 1, limit = 50) => {
+	const fetchUsers = async (page = 1, limit = 10) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -188,12 +188,17 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.get<ApiResponse>(`${BASE_URL}/beneficiary`, {
-				headers: {
-					Accept: "application/json",
-					Authorization: `Bearer ${accessToken}`,
+			const response = await axios.get<ApiResponse>(
+				`${BASE_URL}/beneficiary?page=${page}&limit=${limit}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
 				},
-			});
+			);
+
+			console.log("API Response:", response.data); // Debug log
 
 			if (response.data.status === "success") {
 				const formattedData = response.data.data.map((user) => ({
@@ -204,21 +209,35 @@ const EndUserTable = () => {
 				setTableData(formattedData);
 
 				if (response.data.pagination) {
-					setPagination(response.data.pagination);
-				}
+					const pagination = response.data.pagination;
+					const totalPages = Math.ceil(pagination.total / pagination.per_page);
 
-				console.log("Users Data:", formattedData);
-				console.log("Pagination:", response.data.pagination);
+					console.log("Setting pagination:", {
+						page: pagination.current_page,
+						limit: pagination.per_page,
+						total: pagination.total,
+						pages: totalPages,
+						next_page: pagination.next_page_url,
+					});
+
+					setServerPagination({
+						page: pagination.current_page,
+						limit: pagination.per_page,
+						total: pagination.total,
+						pages: totalPages,
+					});
+				}
 			}
 		} catch (error) {
 			console.error("Error fetching user data:", error);
+			toast.error("Failed to fetch users. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50);
+		fetchUsers(1, 10);
 	}, []);
 
 	const deleteUser = async (id: string) => {
@@ -231,7 +250,7 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.delete(`${BASE_URL}/beneficiary`, {
+			const response = await axios.delete(`${BASE_URL}/beneficiary/${id}`, {
 				headers: {
 					Accept: "application/json",
 					Authorization: `Bearer ${accessToken}`,
@@ -241,7 +260,7 @@ const EndUserTable = () => {
 			});
 
 			if (response.data.status === "success") {
-				setTableData((prevData) => prevData.filter((user) => user.id !== id));
+				fetchUsers(serverPagination.page, serverPagination.limit);
 				toast.success("User deleted successfully.");
 			}
 		} catch (error) {
@@ -263,10 +282,10 @@ const EndUserTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const loadMoreUsers = () => {
-		if (pagination.page < pagination.pages) {
-			fetchUsers(pagination.page + 1, pagination.limit);
-		}
+	const handlePaginationChange = (pageIndex: number, pageSize: number) => {
+		// Convert 0-based index to 1-based for API
+		console.log("Pagination change:", pageIndex + 1, pageSize);
+		fetchUsers(pageIndex + 1, pageSize);
 	};
 
 	const getFullName = (user: EndUser) => {
@@ -279,11 +298,9 @@ const EndUserTable = () => {
 		return user.is_active ? "active" : "inactive";
 	};
 
-	// Print ID Card function
-	// Replace the existing printIDCard function with this updated version:
-
-	// Print ID Card function
+	// Print ID Card function (unchanged - your existing code)
 	const printIDCard = (user: EndUser) => {
+		// Your existing printIDCard function remains the same
 		const userFullName = getFullName(user);
 		const userDOB = user.dob ? new Date(user.dob).toLocaleDateString() : "N/A";
 		const today = new Date().toLocaleString();
@@ -291,248 +308,248 @@ const EndUserTable = () => {
 		const printWindow = window.open("", "_blank");
 		if (!printWindow) {
 			toast.error(
-				"Could not open print window. Please check your pop-up blocker."
+				"Could not open print window. Please check your pop-up blocker.",
 			);
 			return;
 		}
 
 		// Simple HTML content without complex image handling
 		const content = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<title>ID Card - ${user.membership_code}</title>
-			<style>
-				@page {
-					size: 80mm 50mm;
-					margin: 0;
-				}
-				
-				body {
-					margin: 0;
-					padding: 0;
-					font-family: Arial, sans-serif;
-					font-size: 10px;
-					background: white;
-				}
-				
-				.id-card {
-					width: 80mm;
-					height: 50mm;
-					border: 2px solid #000;
-					border-radius: 5px;
-					padding: 3mm;
-					box-sizing: border-box;
-					position: relative;
-				}
-				
-				.header {
-					text-align: center;
-					border-bottom: 1px solid #ccc;
-					padding-bottom: 2mm;
-					margin-bottom: 2mm;
-				}
-				
-				.header h2 {
-					margin: 0;
-					font-size: 12px;
-					color: #1e40af;
-				}
-				
-				.header p {
-					margin: 2px 0 0 0;
-					font-size: 8px;
-					color: #666;
-				}
-				
-				.content {
-					display: flex;
-					gap: 3mm;
-					margin: 2mm 0;
-				}
-				
-				.photo-container {
-					width: 25mm;
-					height: 25mm;
-					border: 1px solid #ccc;
-					border-radius: 3mm;
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					background: #f5f5f5;
-					font-size: 9px;
-					color: #666;
-				}
-				
-				.photo-img {
-					width: 100%;
-					height: 100%;
-					object-fit: cover;
-					border-radius: 3mm;
-				}
-				
-				.details {
-					flex: 1;
-				}
-				
-				.detail-row {
-					display: flex;
-					margin-bottom: 2px;
-				}
-				
-				.label {
-					font-weight: bold;
-					width: 25mm;
-					color: #333;
-				}
-				
-				.value {
-					flex: 1;
-					color: #555;
-					text-transform: capitalize;
-				}
-				
-				.id-number {
-					font-family: 'Courier New', monospace;
-					font-weight: bold;
-					color: #1e40af;
-					font-size: 11px;
-				}
-				
-				.status {
-					display: inline-block;
-					padding: 1px 5px;
-					border-radius: 3px;
-					font-weight: bold;
-					font-size: 8px;
-					${
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>ID Card - ${user.membership_code}</title>
+      <style>
+        @page {
+          size: 80mm 50mm;
+          margin: 0;
+        }
+        
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
+          font-size: 10px;
+          background: white;
+        }
+        
+        .id-card {
+          width: 80mm;
+          height: 50mm;
+          border: 2px solid #000;
+          border-radius: 5px;
+          padding: 3mm;
+          box-sizing: border-box;
+          position: relative;
+        }
+        
+        .header {
+          text-align: center;
+          border-bottom: 1px solid #ccc;
+          padding-bottom: 2mm;
+          margin-bottom: 2mm;
+        }
+        
+        .header h2 {
+          margin: 0;
+          font-size: 12px;
+          color: #1e40af;
+        }
+        
+        .header p {
+          margin: 2px 0 0 0;
+          font-size: 8px;
+          color: #666;
+        }
+        
+        .content {
+          display: flex;
+          gap: 3mm;
+          margin: 2mm 0;
+        }
+        
+        .photo-container {
+          width: 25mm;
+          height: 25mm;
+          border: 1px solid #ccc;
+          border-radius: 3mm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f5f5f5;
+          font-size: 9px;
+          color: #666;
+        }
+        
+        .photo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 3mm;
+        }
+        
+        .details {
+          flex: 1;
+        }
+        
+        .detail-row {
+          display: flex;
+          margin-bottom: 2px;
+        }
+        
+        .label {
+          font-weight: bold;
+          width: 25mm;
+          color: #333;
+        }
+        
+        .value {
+          flex: 1;
+          color: #555;
+          text-transform: capitalize;
+        }
+        
+        .id-number {
+          font-family: 'Courier New', monospace;
+          font-weight: bold;
+          color: #1e40af;
+          font-size: 11px;
+        }
+        
+        .status {
+          display: inline-block;
+          padding: 1px 5px;
+          border-radius: 3px;
+          font-weight: bold;
+          font-size: 8px;
+          ${
 						user.is_active
 							? "background: #10b981; color: white;"
 							: "background: #ef4444; color: white;"
 					}
-				}
-				
-				.footer {
-					border-top: 1px solid #ccc;
-					padding-top: 2mm;
-					margin-top: 2mm;
-					text-align: center;
-				}
-				
-				.barcode {
-					font-family: 'Courier New', monospace;
-					font-size: 14px;
-					letter-spacing: 1px;
-					background: #f5f5f5;
-					padding: 2px 5px;
-					border-radius: 3px;
-					margin-bottom: 2px;
-				}
-				
-				.print-info {
-					font-size: 7px;
-					color: #666;
-					text-align: right;
-					margin-top: 2mm;
-				}
-				
-				/* Hide during screen view, show during print */
-				@media screen {
-					body {
-						background: #f0f0f0;
-						display: flex;
-						justify-content: center;
-						align-items: center;
-						min-height: 100vh;
-					}
-					
-					.id-card {
-						box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-					}
-				}
-				
-				@media print {
-					body {
-						background: white !important;
-					}
-					
-					.id-card {
-						box-shadow: none !important;
-						border: 2px solid #000 !important;
-					}
-				}
-			</style>
-		</head>
-		<body>
-			<div class="id-card">
-				<div class="header">
-					<h2>MEMBERSHIP ID CARD</h2>
-					<p>Valid Until: 12/${new Date().getFullYear() + 1}</p>
-				</div>
-				
-				<div class="content">
-					<div class="photo-container">
-						${
+        }
+        
+        .footer {
+          border-top: 1px solid #ccc;
+          padding-top: 2mm;
+          margin-top: 2mm;
+          text-align: center;
+        }
+        
+        .barcode {
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          letter-spacing: 1px;
+          background: #f5f5f5;
+          padding: 2px 5px;
+          border-radius: 3px;
+          margin-bottom: 2px;
+        }
+        
+        .print-info {
+          font-size: 7px;
+          color: #666;
+          text-align: right;
+          margin-top: 2mm;
+        }
+        
+        /* Hide during screen view, show during print */
+        @media screen {
+          body {
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+          }
+          
+          .id-card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+          }
+        }
+        
+        @media print {
+          body {
+            background: white !important;
+          }
+          
+          .id-card {
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="id-card">
+        <div class="header">
+          <h2>MEMBERSHIP ID CARD</h2>
+          <p>Valid Until: 12/${new Date().getFullYear() + 1}</p>
+        </div>
+        
+        <div class="content">
+          <div class="photo-container">
+            ${
 							user.pic
 								? `<img src="${user.pic}" alt="Photo" class="photo-img" onerror="this.style.display='none'; this.parentElement.innerHTML='No Photo Available'; this.parentElement.style.fontSize='9px'; this.parentElement.style.color='#666';">`
 								: "No Photo Available"
 						}
-					</div>
-					
-					<div class="details">
-						<div class="detail-row">
-							<span class="label">Full Name:</span>
-							<span class="value">${userFullName}</span>
-						</div>
-						
-						<div class="detail-row">
-							<span class="label">ID Number:</span>
-							<span class="value id-number">${user.membership_code}</span>
-						</div>
-						
-						<div class="detail-row">
-							<span class="label">Gender:</span>
-							<span class="value">${user.gender}</span>
-						</div>
-						
-						<div class="detail-row">
-							<span class="label">Date of Birth:</span>
-							<span class="value">${userDOB}</span>
-						</div>
-						
-						<div class="detail-row">
-							<span class="label">Status:</span>
-							<span class="value">
-								<span class="status">${user.is_active ? "ACTIVE" : "INACTIVE"}</span>
-							</span>
-						</div>
-					</div>
-				</div>
-				
-				<div class="footer">
-					<div class="barcode">${user.membership_code}</div>
-					<div style="font-size: 7px; color: #666;">Issued: ${new Date().toLocaleDateString()}</div>
-				</div>
-				
-				<div class="print-info">
-					Printed: ${today}
-				</div>
-			</div>
-			
-			<script>
-				// Auto-print after a short delay
-				setTimeout(() => {
-					window.print();
-					
-					// Close window after print
-					setTimeout(() => {
-						window.close();
-					}, 500);
-				}, 500);
-			</script>
-		</body>
-		</html>
-	`;
+          </div>
+          
+          <div class="details">
+            <div class="detail-row">
+              <span class="label">Full Name:</span>
+              <span class="value">${userFullName}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="label">ID Number:</span>
+              <span class="value id-number">${user.membership_code}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="label">Gender:</span>
+              <span class="value">${user.gender}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="label">Date of Birth:</span>
+              <span class="value">${userDOB}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="label">Status:</span>
+              <span class="value">
+                <span class="status">${user.is_active ? "ACTIVE" : "INACTIVE"}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <div class="barcode">${user.membership_code}</div>
+          <div style="font-size: 7px; color: #666;">Issued: ${new Date().toLocaleDateString()}</div>
+        </div>
+        
+        <div class="print-info">
+          Printed: ${today}
+        </div>
+      </div>
+      
+      <script>
+        // Auto-print after a short delay
+        setTimeout(() => {
+          window.print();
+          
+          // Close window after print
+          setTimeout(() => {
+            window.close();
+          }, 500);
+        }, 500);
+      </script>
+    </body>
+    </html>
+  `;
 
 		printWindow.document.write(content);
 		printWindow.document.close();
@@ -596,7 +613,7 @@ const EndUserTable = () => {
 			accessorKey: "email",
 			header: "Email",
 			cell: ({ row }) => {
-				const email = row.getValue<string>("email");
+				const email = row.getValue<string>("email") || "N/A";
 				return <span className="text-xs text-primary-6">{email}</span>;
 			},
 		},
@@ -679,19 +696,15 @@ const EndUserTable = () => {
 				<Loader />
 			) : (
 				<>
-					<EndUserDataTable columns={columns} data={tableData} />
-					{pagination.page < pagination.pages && (
-						<div className="mt-4 flex justify-center">
-							<Button
-								onClick={loadMoreUsers}
-								className="bg-primary-1 text-white"
-								disabled={isLoading}>
-								{isLoading
-									? "Loading..."
-									: `Load More (${tableData.length} of ${pagination.total})`}
-							</Button>
-						</div>
-					)}
+					<EndUserDataTable
+						columns={columns}
+						data={tableData}
+						onPaginationChange={handlePaginationChange}
+						totalItems={serverPagination.total}
+						currentPage={serverPagination.page - 1} // Convert to 0-based index for table
+						totalPages={serverPagination.pages}
+						pageSize={serverPagination.limit}
+					/>
 				</>
 			)}
 
