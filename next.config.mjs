@@ -5,6 +5,7 @@ const nextConfig = {
 			"lh3.googleusercontent.com",
 			"akin.wowdev.com.ng",
 			"res.cloudinary.com",
+			"api.akinalabi.wowidenti.com",
 		],
 	},
 };

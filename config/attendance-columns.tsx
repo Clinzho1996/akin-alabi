@@ -24,7 +24,7 @@ import { toast } from "react-toastify";
 import { AttendanceDataTable } from "./attendance-table";
 
 // Constants
-const BASE_URL = "https://akin.wowdev.com.ng/api/v1";
+const BASE_URL = "https://api.akinalabi.wowidenti.com/api/v1";
 
 // Types based on the actual API response
 export type User = {
@@ -204,7 +204,7 @@ const AttendanceTable = () => {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.status === 200) {
@@ -217,7 +217,7 @@ const AttendanceTable = () => {
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to update attendance record. Please try again."
+						"Failed to update attendance record. Please try again.",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -269,7 +269,7 @@ const AttendanceTable = () => {
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to fetch event data. Please try again."
+						"Failed to fetch event data. Please try again.",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -307,8 +307,8 @@ const AttendanceTable = () => {
 						? {
 								...prev,
 								attendances: prev.attendances.filter((att) => att.id !== id),
-						  }
-						: null
+							}
+						: null,
 				);
 				toast.success("Attendance record deleted successfully.");
 			}
@@ -317,7 +317,7 @@ const AttendanceTable = () => {
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to delete attendance record. Please try again"
+						"Failed to delete attendance record. Please try again",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");

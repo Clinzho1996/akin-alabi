@@ -86,13 +86,13 @@ function BeneficiaryDetails() {
 			const accessToken = session?.accessToken;
 
 			const response = await axios.get(
-				`https://akin.wowdev.com.ng/api/v1/beneficiary/${id}`,
+				`https://api.akinalabi.wowidenti.com/api/v1/beneficiary/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.data.status) {
@@ -126,7 +126,7 @@ function BeneficiaryDetails() {
 			if (axios.isAxiosError(error)) {
 				console.log(
 					"Error fetching user details:",
-					error.response?.data || error.message
+					error.response?.data || error.message,
 				);
 			} else {
 				console.log("Unexpected error:", error);

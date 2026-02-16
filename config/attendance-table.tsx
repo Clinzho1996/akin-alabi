@@ -75,7 +75,7 @@ export function AttendanceDataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
+		[],
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
@@ -215,7 +215,7 @@ export function AttendanceDataTable<TData, TValue>({
 			}
 
 			const selectedIds = Object.keys(rowSelection).map(
-				(index) => (tableData[parseInt(index)] as any)?.id
+				(index) => (tableData[parseInt(index)] as any)?.id,
 			);
 
 			if (selectedIds.length === 0) {
@@ -226,14 +226,14 @@ export function AttendanceDataTable<TData, TValue>({
 			console.log("Selected IDs for deletion:", selectedIds);
 
 			const response = await axios.delete(
-				"https://akin.wowdev.com.ng/api/v1/attendance/bulk", // Adjust endpoint as needed
+				"https://api.akinalabi.wowidenti.com/api/v1/attendance/bulk", // Adjust endpoint as needed
 				{
 					data: { ids: selectedIds },
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
 					},
-				}
+				},
 			);
 
 			if (response.status === 200) {
@@ -241,7 +241,9 @@ export function AttendanceDataTable<TData, TValue>({
 
 				// Update the table data by filtering out the deleted records
 				setTableData((prevData) =>
-					prevData.filter((record) => !selectedIds.includes((record as any).id))
+					prevData.filter(
+						(record) => !selectedIds.includes((record as any).id),
+					),
 				);
 
 				// Clear the selection
@@ -252,7 +254,7 @@ export function AttendanceDataTable<TData, TValue>({
 			if (axios.isAxiosError(error)) {
 				toast.error(
 					error.response?.data?.message ||
-						"Failed to delete attendance records. Please try again."
+						"Failed to delete attendance records. Please try again.",
 				);
 			} else {
 				toast.error("An unexpected error occurred. Please try again.");
@@ -299,7 +301,7 @@ export function AttendanceDataTable<TData, TValue>({
 								onClick={() => handleStatusFilter(status)}>
 								{status}
 							</p>
-						)
+						),
 					)}
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full sm:w-[50%]">
@@ -335,8 +337,8 @@ export function AttendanceDataTable<TData, TValue>({
 											? null
 											: flexRender(
 													header.column.columnDef.header,
-													header.getContext()
-											  )}
+													header.getContext(),
+												)}
 									</TableHead>
 								);
 							})}
